@@ -1,17 +1,16 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import {
   View,
   Text,
-  ScrollView,
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
-import { useContacts, type Contact } from "@/hooks/use-contacts";
 import { trpc } from "@/lib/trpc";
 import { useColors } from "@/hooks/use-colors";
 import { Ionicons } from "@expo/vector-icons";
@@ -19,84 +18,54 @@ import { Ionicons } from "@expo/vector-icons";
 export default function NewChatScreen() {
   const router = useRouter();
   const colors = useColors();
-  const { contacts, loading, error, hasPermission, requestPermission } =
-    useContacts();
   const [searchText, setSearchText] = useState("");
-  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
+  const trpcUtils = trpc.useUtils();
 
   const createChatMutation = trpc.chat.create.useMutation({
     onSuccess: (chat: any) => {
-      router.push(`/chat-detail?chatId=${chat.id}`);
+      router.push(`/chat-detail?conversationId=${chat.id}`);
     },
-    onError: () => {
-      Alert.alert("Error", "Failed to create chat");
-    },
-  });
-
-  const sendInviteMutation = trpc.chat.sendInvite.useMutation({
-    onSuccess: () => {
-      Alert.alert("Success", "Invitation sent successfully");
-      setSelectedContact(null);
-      setSearchText("");
-    },
-    onError: () => {
-      Alert.alert("Error", "Failed to send invitation");
+    onError: (error: any) => {
+      Alert.alert("Hata", error.message || "Sohbet oluşturulamadı");
     },
   });
 
-  const filteredContacts = useMemo(() => {
-    if (!searchText.trim()) return contacts;
-    return contacts.filter((contact) =>
-      contact.name.toLowerCase().includes(searchText.toLowerCase())
-    );
-  }, [contacts, searchText]);
-
-  const handleSelectContact = async (contact: Contact) => {
-    setSelectedContact(contact);
-
-    // Get the phone number or email
-    const phoneNumber = contact.phoneNumbers?.[0]?.number;
-    const email = contact.emails?.[0]?.email;
-    const contactInfo = phoneNumber || email;
-
-    if (!contactInfo) {
-      Alert.alert("Error", "Contact has no phone number or email");
+  const handleSearch = async () => {
+    if (!searchText.trim()) {
+      Alert.alert("Uyarı", "Lütfen bir kullanıcı adı veya telefon numarası girin");
       return;
     }
 
-    // Try to create a chat with this contact
+    setIsSearching(true);
     try {
-      createChatMutation.mutate({
-        participantIdentifier: contactInfo,
+      const results = await trpcUtils.client.groups.searchUsers.query({
+        query: searchText.trim(),
       });
-    } catch (err) {
-      // If chat creation fails, offer to send an invite
-      Alert.alert(
-        "Send Invitation",
-        `${contact.name} is not yet using LingoChat. Send them an invitation?`,
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Send Invite",
-            onPress: () => {
-              sendInviteMutation.mutate({
-                contactName: contact.name,
-                contactInfo: contactInfo,
-              });
-            },
-          },
-        ]
-      );
+      setSearchResults(results || []);
+      
+      if (results.length === 0) {
+        Alert.alert("Sonuç Yok", "Kullanıcı bulunamadı");
+      }
+    } catch (error) {
+      console.error("Search error:", error);
+      Alert.alert("Hata", "Arama yapılırken bir hata oluştu");
+    } finally {
+      setIsSearching(false);
     }
   };
 
-  const handleRequestPermission = async () => {
-    const granted = await requestPermission();
-    if (!granted) {
-      Alert.alert(
-        "Permission Denied",
-        "Please enable contacts permission in settings"
-      );
+  const handleSelectUser = async (user: any) => {
+    try {
+      // Create chat with phone number
+      createChatMutation.mutate({
+        participantIdentifier: user.phoneNumber || user.username,
+      });
+    } catch (error) {
+      console.error("Create chat error:", error);
+      Alert.alert("Hata", "Sohbet oluşturulamadı");
     }
   };
 
@@ -105,129 +74,174 @@ export default function NewChatScreen() {
       <View className="gap-4 flex-1">
         {/* Header */}
         <View className="flex-row items-center justify-between mb-2">
-          <Text className="text-2xl font-bold text-foreground">New Chat</Text>
-            <TouchableOpacity
-              onPress={() => router.push({ pathname: "/(tabs)/chats" })}
-              className="p-2"
-            >
-              <Ionicons name="close" size={24} color={colors.foreground} />
-            </TouchableOpacity>
+          <Text className="text-2xl font-bold text-foreground">Yeni Sohbet</Text>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            className="p-2"
+          >
+            <Ionicons name="close" size={24} color={colors.foreground} />
+          </TouchableOpacity>
         </View>
 
         {/* Search Bar */}
         <View className="bg-surface rounded-lg border border-border flex-row items-center px-4 py-3 gap-2">
           <Ionicons name="search" size={20} color={colors.muted} />
           <TextInput
-            placeholder="Search contacts..."
+            placeholder="Kullanıcı adı veya telefon numarası..."
             placeholderTextColor={colors.muted}
             value={searchText}
             onChangeText={setSearchText}
+            onSubmitEditing={handleSearch}
+            returnKeyType="search"
             className="flex-1 text-foreground"
           />
+          {searchText.length > 0 && (
+            <TouchableOpacity onPress={() => {
+              setSearchText("");
+              setSearchResults([]);
+            }}>
+              <Ionicons name="close-circle" size={20} color={colors.muted} />
+            </TouchableOpacity>
+          )}
         </View>
 
-        {/* Permission Request */}
-        {!hasPermission && (
-          <View className="bg-warning bg-opacity-10 rounded-lg p-4 border border-warning border-opacity-30">
-            <Text className="text-sm text-foreground font-medium mb-2">
-              Access your contacts to start chatting
+        {/* Search Button */}
+        <TouchableOpacity
+          onPress={handleSearch}
+          disabled={isSearching || !searchText.trim()}
+          style={{
+            backgroundColor:
+              isSearching || !searchText.trim() ? colors.border : colors.primary,
+            borderRadius: 12,
+            padding: 16,
+            alignItems: "center",
+          }}
+        >
+          {isSearching ? (
+            <ActivityIndicator color="#ffffff" />
+          ) : (
+            <View className="flex-row items-center gap-2">
+              <Ionicons name="search" size={20} color="#ffffff" />
+              <Text className="text-white font-bold text-base">Ara</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+
+        {/* Search Results */}
+        {searchResults.length > 0 && (
+          <View className="flex-1">
+            <Text className="text-base font-semibold text-foreground mb-3">
+              Sonuçlar ({searchResults.length})
             </Text>
-            <TouchableOpacity
-              onPress={handleRequestPermission}
-              className="bg-warning rounded-lg py-2 px-4 items-center"
-            >
-              <Text className="text-background font-semibold">
-                Enable Contacts
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Error Message */}
-        {error && (
-          <View className="bg-error bg-opacity-10 rounded-lg p-4 border border-error border-opacity-30">
-            <Text className="text-sm text-error">{error}</Text>
-          </View>
-        )}
-
-        {/* Loading State */}
-        {loading && (
-          <View className="flex-1 items-center justify-center">
-            <ActivityIndicator size="large" color={colors.primary} />
-          </View>
-        )}
-
-        {/* Contacts List */}
-        {!loading && hasPermission && (
-          <>
-            {filteredContacts.length === 0 ? (
-              <View className="flex-1 items-center justify-center gap-2">
-                <Ionicons
-                  name="person-outline"
-                  size={48}
-                  color={colors.muted}
+            <FlatList
+              data={searchResults}
+              keyExtractor={(item) => item.userId.toString()}
+              renderItem={({ item }) => (
+                <UserCard
+                  user={item}
+                  onPress={() => handleSelectUser(item)}
+                  isLoading={createChatMutation.isPending}
                 />
-                <Text className="text-muted text-center">
-                  {searchText ? "No contacts found" : "No contacts available"}
-                </Text>
-              </View>
-            ) : (
-              <FlatList
-                data={filteredContacts}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
-                  <ContactCard
-                    contact={item}
-                    onPress={() => handleSelectContact(item)}
-                    isLoading={
-                      createChatMutation.isPending ||
-                      sendInviteMutation.isPending
-                    }
-                  />
-                )}
-                scrollEnabled={false}
-                contentContainerStyle={{ gap: 8 }}
-              />
-            )}
-          </>
+              )}
+              contentContainerStyle={{ gap: 8 }}
+            />
+          </View>
+        )}
+
+        {/* Empty State */}
+        {!isSearching && searchResults.length === 0 && searchText.length === 0 && (
+          <View className="flex-1 items-center justify-center gap-3">
+            <View
+              style={{
+                width: 80,
+                height: 80,
+                borderRadius: 40,
+                backgroundColor: colors.primary + "20",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <Ionicons name="search" size={40} color={colors.primary} />
+            </View>
+            <Text className="text-base text-muted text-center px-8">
+              Kullanıcı aramak için yukarıdaki arama kutusunu kullanın
+            </Text>
+            <View className="mt-4 gap-2">
+              <Text className="text-sm text-muted text-center">Örnek aramalar:</Text>
+              <Text className="text-sm text-foreground text-center">
+                @test_turkish, @test_english
+              </Text>
+            </View>
+          </View>
         )}
       </View>
     </ScreenContainer>
   );
 }
 
-function ContactCard({
-  contact,
+function UserCard({
+  user,
   onPress,
   isLoading,
 }: {
-  contact: Contact;
+  user: any;
   onPress: () => void;
   isLoading: boolean;
 }) {
   const colors = useColors();
-  const phoneNumber = contact.phoneNumbers?.[0]?.number;
-  const email = contact.emails?.[0]?.email;
 
   return (
     <TouchableOpacity
       onPress={onPress}
       disabled={isLoading}
-      className="bg-surface rounded-lg p-4 border border-border flex-row items-center justify-between"
+      style={{
+        backgroundColor: colors.surface,
+        borderRadius: 16,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: colors.border,
+      }}
     >
-      <View className="flex-1 gap-1">
-        <Text className="text-base font-semibold text-foreground">
-          {contact.name}
-        </Text>
-        <Text className="text-sm text-muted">
-          {phoneNumber || email || "No contact info"}
-        </Text>
+      <View className="flex-row items-center gap-3">
+        {user.profilePictureUrl ? (
+          <Image
+            source={{ uri: user.profilePictureUrl }}
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 24,
+            }}
+          />
+        ) : (
+          <View
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 24,
+              backgroundColor: colors.primary + "20",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <Ionicons name="person" size={24} color={colors.primary} />
+          </View>
+        )}
+        
+        <View className="flex-1">
+          <Text className="text-base font-bold text-foreground">
+            @{user.username}
+          </Text>
+          {user.phoneNumber && (
+            <Text className="text-sm text-muted">{user.phoneNumber}</Text>
+          )}
+        </View>
+
+        {isLoading ? (
+          <ActivityIndicator size="small" color={colors.primary} />
+        ) : (
+          <Ionicons name="chatbubble" size={20} color={colors.primary} />
+        )}
       </View>
-      {isLoading ? (
-        <ActivityIndicator size="small" color={colors.primary} />
-      ) : (
-        <Ionicons name="chevron-forward" size={20} color={colors.muted} />
-      )}
     </TouchableOpacity>
   );
 }
