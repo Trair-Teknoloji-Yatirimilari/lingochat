@@ -31,30 +31,6 @@ export default function RegisterScreen() {
   const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
   const [suggestedUsernames, setSuggestedUsernames] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const [checkingProfile, setCheckingProfile] = useState(true);
-
-  const profileQuery = trpc.profile.get.useQuery(undefined, {
-    retry: false,
-  });
-
-  // Profil kontrolü - eğer gerçek username varsa ana sayfaya git
-  useEffect(() => {
-    if (profileQuery.isLoading) {
-      setCheckingProfile(true);
-      return;
-    }
-
-    if (profileQuery.data && profileQuery.data.username) {
-      const isDefaultUsername = profileQuery.data.username.startsWith("user_");
-      if (!isDefaultUsername && profileQuery.data.username.length >= 3) {
-        console.log("[Register] User already has profile, redirecting to home");
-        router.replace("/(tabs)");
-        return;
-      }
-    }
-
-    setCheckingProfile(false);
-  }, [profileQuery.isLoading, profileQuery.data]);
 
   const updateProfileMutation = trpc.profile.update.useMutation({
     onSuccess: () => {

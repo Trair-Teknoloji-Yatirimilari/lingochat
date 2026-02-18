@@ -157,11 +157,24 @@ export default function OtpLoginScreen() {
           console.log("[OTP] Session token saved");
         }
 
-        // Direkt kayıt ekranına git - kayıt ekranı profil kontrolü yapacak
-        router.replace({
-          pathname: "/register",
-          params: { phoneNumber: fullPhoneNumber },
+        console.log("[OTP] Verify result:", {
+          hasCompletedProfile: result.hasCompletedProfile,
+          userId: result.userId,
         });
+
+        // Profil durumuna göre yönlendir
+        if (result.hasCompletedProfile) {
+          // Kullanıcı daha önce profil oluşturmuş, direkt ana sayfaya git
+          console.log("[OTP] User has completed profile, redirecting to home");
+          router.replace("/(tabs)");
+        } else {
+          // Kullanıcı profil oluşturmamış, kayıt sayfasına git
+          console.log("[OTP] User needs to complete profile, redirecting to register");
+          router.replace({
+            pathname: "/register",
+            params: { phoneNumber: fullPhoneNumber },
+          });
+        }
       } else {
         Alert.alert("Hata", result.message || "Geçersiz OTP kodu");
       }

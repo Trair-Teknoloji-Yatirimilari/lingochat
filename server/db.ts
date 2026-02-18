@@ -1,7 +1,22 @@
 import { eq, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { InsertUser, users, userProfiles, conversations, messages, mediaMessages, readReceipts, InsertUserProfile, InsertConversation, InsertMessage, InsertMediaMessage, InsertReadReceipt } from "../drizzle/schema";
+import { 
+  InsertUser, 
+  users, 
+  userProfiles, 
+  conversations, 
+  messages, 
+  mediaMessages, 
+  readReceipts, 
+  phoneVerifications,
+  otpCodes,
+  InsertUserProfile, 
+  InsertConversation, 
+  InsertMessage, 
+  InsertMediaMessage, 
+  InsertReadReceipt 
+} from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -275,4 +290,505 @@ export async function getMessageReadStatus(
     console.error("[DB] Error getting read status:", error);
     return [];
   }
+}
+
+// Delete user account and all related data
+export async function deleteUserAccount(userId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  try {
+    console.log(`[Database] Starting account deletion for user: ${userId}`);
+    
+    // Get user profile to find phone number for OTP cleanup
+    const profile = await getUserProfile(userId);
+    const phoneNumber = profile?.phoneNumber;
+    
+    // Delete in order: child tables first, then parent tables
+    // 1. Delete read receipts
+    const readReceiptsDeleted = await db.delete(readReceipts).where(eq(readReceipts.userId, userId));
+    console.log(`[Database] Deleted read receipts for user ${userId}`);
+    
+    // 2. Delete media messages
+    const mediaDeleted = await db.delete(mediaMessages).where(eq(mediaMessages.senderId, userId));
+    console.log(`[Database] Deleted media messages for user ${userId}`);
+    
+    // 3. Delete messages
+    const messagesDeleted = await db.delete(messages).where(eq(messages.senderId, userId));
+    console.log(`[Database] Deleted messages for user ${userId}`);
+    
+    // 4. Delete conversations where user is participant
+    const conversationsDeleted = await db.delete(conversations).where(
+      or(
+        eq(conversations.participant1Id, userId),
+        eq(conversations.participant2Id, userId)
+      )
+    );
+    console.log(`[Database] Deleted conversations for user ${userId}`);
+    
+    // 5. Delete phone verifications
+    const phoneVerificationsDeleted = await db.delete(phoneVerifications).where(eq(phoneVerifications.userId, userId));
+    console.log(`[Database] Deleted phone verifications for user ${userId}`);
+    
+    // 6. Delete OTP codes if phone number exists
+    if (phoneNumber) {
+      const otpDeleted = await db.delete(otpCodes).where(eq(otpCodes.phoneNumber, phoneNumber));
+      console.log(`[Database] Deleted OTP codes for phone ${phoneNumber}`);
+    }
+    
+    // 7. Delete user profile
+    const profileDeleted = await db.delete(userProfiles).where(eq(userProfiles.userId, userId));
+    console.log(`[Database] Deleted user profile for user ${userId}`);
+    
+    // 8. Finally delete user
+    const userDeleted = await db.delete(users).where(eq(users.id, userId));
+    console.log(`[Database] Deleted user ${userId}`);
+    
+    console.log(`[Database] Successfully completed account deletion for user: ${userId}`);
+  } catch (error) {
+    console.error("[Database] Failed to delete user account:", error);
+    throw error;
+  }
+}
+
+// Group Room functions
+export async function createGroupRoom(data: any) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const { groupRooms } = await import("../drizzle/schema");
+  const result = await db.insert(groupRooms).values(data).returning();
+  return result[0];
+}
+
+export async function getRoomByCode(roomCode: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const { groupRooms } = await import("../drizzle/schema");
+  const result = await db.select().from(groupRooms).where(eq(groupRooms.roomCode, roomCode)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getGroupRoom(roomId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const { groupRooms } = await import("../drizzle/schema");
+  const result = await db.select().from(groupRooms).where(eq(groupRooms.id, roomId)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getActiveRooms() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const { groupRooms } = await import("../drizzle/schema");
+  const result = await db.select().from(groupRooms).where(eq(groupRooms.isActive, true));
+  return result;
+}
+
+export async function getUserActiveRooms(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const { groupRooms, groupParticipants } = await import("../drizzle/schema");
+  const { and, isNull } = await import("drizzle-orm");
+  
+  const result = await db
+    .select({
+      id: groupRooms.id,
+      name: groupRooms.name,
+      description: groupRooms.description,
+      roomCode: groupRooms.roomCode,
+      maxParticipants: groupRooms.maxParticipants,
+      createdAt: groupRooms.createdAt,
+      isModerator: groupParticipants.isModerator,
+    })
+    .from(groupRooms)
+    .innerJoin(groupParticipants, eq(groupRooms.id, groupParticipants.roomId))
+    .where(
+      and(
+        eq(groupParticipants.userId, userId),
+        isNull(groupParticipants.leftAt),
+        eq(groupRooms.isActive, true)
+      )
+    );
+  
+  return result;
+}
+
+// Group Participant functions
+export async function addGroupParticipant(data: any) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const { groupParticipants } = await import("../drizzle/schema");
+  const result = await db.insert(groupParticipants).values(data).returning();
+  return result[0];
+}
+
+export async function getGroupParticipant(roomId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const { groupParticipants } = await import("../drizzle/schema");
+  const { and } = await import("drizzle-orm");
+  
+  const result = await db
+    .select()
+    .from(groupParticipants)
+    .where(
+      and(
+        eq(groupParticipants.roomId, roomId),
+        eq(groupParticipants.userId, userId)
+      )
+    )
+    .orderBy((gp) => gp.joinedAt)
+    .limit(1);
+  
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getActiveParticipantsCount(roomId: number) {
+  const db = await getDb();
+  if (!db) return 0;
+  
+  const { groupParticipants } = await import("../drizzle/schema");
+  const { and, isNull, count } = await import("drizzle-orm");
+  
+  const result = await db
+    .select({ count: count() })
+    .from(groupParticipants)
+    .where(
+      and(
+        eq(groupParticipants.roomId, roomId),
+        isNull(groupParticipants.leftAt)
+      )
+    );
+  
+  return result[0]?.count || 0;
+}
+
+export async function getGroupParticipants(roomId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const { groupParticipants, userProfiles } = await import("../drizzle/schema");
+  const { and, isNull } = await import("drizzle-orm");
+  
+  const result = await db
+    .select({
+      userId: groupParticipants.userId,
+      username: userProfiles.username,
+      profilePictureUrl: userProfiles.profilePictureUrl,
+      joinedAt: groupParticipants.joinedAt,
+      isModerator: groupParticipants.isModerator,
+    })
+    .from(groupParticipants)
+    .innerJoin(userProfiles, eq(groupParticipants.userId, userProfiles.userId))
+    .where(
+      and(
+        eq(groupParticipants.roomId, roomId),
+        isNull(groupParticipants.leftAt)
+      )
+    );
+  
+  return result;
+}
+
+export async function leaveGroupRoom(roomId: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const { groupParticipants } = await import("../drizzle/schema");
+  const { and, isNull } = await import("drizzle-orm");
+  
+  await db
+    .update(groupParticipants)
+    .set({ leftAt: new Date() })
+    .where(
+      and(
+        eq(groupParticipants.roomId, roomId),
+        eq(groupParticipants.userId, userId),
+        isNull(groupParticipants.leftAt)
+      )
+    );
+}
+
+// Group Message functions
+export async function createGroupMessage(data: any) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const { groupMessages } = await import("../drizzle/schema");
+  const result = await db.insert(groupMessages).values(data).returning();
+  return result[0];
+}
+
+export async function getGroupMessages(roomId: number, limit: number = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const { groupMessages } = await import("../drizzle/schema");
+  const { and } = await import("drizzle-orm");
+  
+  const result = await db
+    .select()
+    .from(groupMessages)
+    .where(
+      and(
+        eq(groupMessages.roomId, roomId),
+        eq(groupMessages.isDeleted, false)
+      )
+    )
+    .orderBy((gm) => gm.createdAt)
+    .limit(limit);
+  
+  return result;
+}
+
+// Group Message Translation functions
+export async function createGroupMessageTranslation(data: any) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const { groupMessageTranslations } = await import("../drizzle/schema");
+  const result = await db.insert(groupMessageTranslations).values(data).returning();
+  return result[0];
+}
+
+export async function getGroupMessageTranslation(messageId: number, targetLanguage: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const { groupMessageTranslations } = await import("../drizzle/schema");
+  const { and } = await import("drizzle-orm");
+  
+  const result = await db
+    .select()
+    .from(groupMessageTranslations)
+    .where(
+      and(
+        eq(groupMessageTranslations.messageId, messageId),
+        eq(groupMessageTranslations.targetLanguage, targetLanguage)
+      )
+    )
+    .limit(1);
+  
+  return result.length > 0 ? result[0] : undefined;
+}
+
+// Search users by phone or username
+export async function searchUsersByPhoneOrUsername(query: string) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const { userProfiles } = await import("../drizzle/schema");
+  const { or, like, sql } = await import("drizzle-orm");
+  
+  // Search by username or phone number
+  const result = await db
+    .select({
+      userId: userProfiles.userId,
+      username: userProfiles.username,
+      phoneNumber: userProfiles.phoneNumber,
+      profilePictureUrl: userProfiles.profilePictureUrl,
+    })
+    .from(userProfiles)
+    .where(
+      or(
+        like(userProfiles.username, `%${query}%`),
+        like(sql`CAST(${userProfiles.phoneNumber} AS TEXT)`, `%${query}%`)
+      )
+    )
+    .limit(20);
+  
+  return result;
+}
+
+// Group Media Message functions
+export async function createGroupMediaMessage(data: any) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const { groupMediaMessages } = await import("../drizzle/schema");
+  const result = await db.insert(groupMediaMessages).values(data).returning();
+  return result[0];
+}
+
+export async function getGroupMediaMessages(roomId: number, limit: number = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const { groupMediaMessages } = await import("../drizzle/schema");
+  
+  const result = await db
+    .select()
+    .from(groupMediaMessages)
+    .where(eq(groupMediaMessages.roomId, roomId))
+    .orderBy((gmm) => gmm.createdAt)
+    .limit(limit);
+  
+  return result;
+}
+
+export async function getMediaMessageByMessageId(messageId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const { groupMediaMessages } = await import("../drizzle/schema");
+  
+  const result = await db
+    .select()
+    .from(groupMediaMessages)
+    .where(eq(groupMediaMessages.messageId, messageId))
+    .limit(1);
+  
+  return result.length > 0 ? result[0] : undefined;
+}
+
+// Meeting Summary functions
+export async function createMeetingSummary(data: {
+  roomId: number;
+  generatedBy: number;
+  messageCount: number;
+  participantCount: number;
+  startTime: Date;
+  endTime: Date;
+  summaryData: string; // JSON string
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const { meetingSummaries } = await import("../drizzle/schema");
+  const result = await db.insert(meetingSummaries).values(data).returning();
+  return result[0];
+}
+
+export async function getMeetingSummaries(roomId: number, limit: number = 10) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const { meetingSummaries } = await import("../drizzle/schema");
+  
+  const result = await db
+    .select()
+    .from(meetingSummaries)
+    .where(eq(meetingSummaries.roomId, roomId))
+    .orderBy((ms) => ms.createdAt)
+    .limit(limit);
+  
+  return result;
+}
+
+export async function getMeetingSummary(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const { meetingSummaries } = await import("../drizzle/schema");
+  
+  const result = await db
+    .select()
+    .from(meetingSummaries)
+    .where(eq(meetingSummaries.id, id))
+    .limit(1);
+  
+  return result.length > 0 ? result[0] : undefined;
+}
+
+// Auto-delete helper functions
+export function calculateAutoDeleteTime(
+  autoDeleteDuration: number | null | undefined,
+  readAt?: Date
+): Date | null {
+  if (autoDeleteDuration === null || autoDeleteDuration === undefined) {
+    return null; // Auto-delete disabled
+  }
+
+  if (autoDeleteDuration === 0) {
+    // Delete immediately after read
+    if (!readAt) return null; // Not read yet
+    return readAt;
+  }
+
+  // Delete after specified duration from creation
+  const now = new Date();
+  return new Date(now.getTime() + autoDeleteDuration * 1000);
+}
+
+export async function getAutoDeleteMessages() {
+  const db = await getDb();
+  if (!db) return [];
+
+  const now = new Date();
+  const { messages } = await import("../drizzle/schema");
+  const { and, lte, isNotNull, isNull } = await import("drizzle-orm");
+
+  const result = await db
+    .select()
+    .from(messages)
+    .where(
+      and(
+        isNotNull(messages.autoDeleteAt),
+        lte(messages.autoDeleteAt, now),
+        isNull(messages.deletedAt)
+      )
+    )
+    .limit(100);
+
+  return result;
+}
+
+export async function getAutoDeleteGroupMessages() {
+  const db = await getDb();
+  if (!db) return [];
+
+  const now = new Date();
+  const { groupMessages } = await import("../drizzle/schema");
+  const { and, lte, isNotNull, eq } = await import("drizzle-orm");
+
+  const result = await db
+    .select()
+    .from(groupMessages)
+    .where(
+      and(
+        isNotNull(groupMessages.autoDeleteAt),
+        lte(groupMessages.autoDeleteAt, now),
+        eq(groupMessages.isDeleted, false)
+      )
+    )
+    .limit(100);
+
+  return result;
+}
+
+export async function deleteExpiredMessages(messageIds: number[]) {
+  if (messageIds.length === 0) return;
+
+  const db = await getDb();
+  if (!db) return;
+
+  const { messages } = await import("../drizzle/schema");
+  const { inArray } = await import("drizzle-orm");
+
+  await db
+    .update(messages)
+    .set({ deletedAt: new Date(), deletedBy: null })
+    .where(inArray(messages.id, messageIds));
+}
+
+export async function deleteExpiredGroupMessages(messageIds: number[]) {
+  if (messageIds.length === 0) return;
+
+  const db = await getDb();
+  if (!db) return;
+
+  const { groupMessages } = await import("../drizzle/schema");
+  const { inArray } = await import("drizzle-orm");
+
+  await db
+    .update(groupMessages)
+    .set({ isDeleted: true })
+    .where(inArray(groupMessages.id, messageIds));
 }

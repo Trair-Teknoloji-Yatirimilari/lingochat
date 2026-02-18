@@ -77,6 +77,11 @@ async function startServer() {
 
   server.listen(port, () => {
     console.log(`[api] server listening on port ${port}`);
+    
+    // Start auto-delete scheduler
+    import("../auto-delete-scheduler").then((module) => {
+      module.startAutoDeleteScheduler();
+    });
   });
 }
 

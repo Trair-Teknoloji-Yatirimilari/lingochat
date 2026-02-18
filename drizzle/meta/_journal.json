@@ -8,6 +8,48 @@
       "when": 1771420351435,
       "tag": "0000_careless_cyclops",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1771426857956,
+      "tag": "0001_tiresome_eddie_brock",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1771427444956,
+      "tag": "0002_windy_krista_starr",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1771439411240,
+      "tag": "0003_thick_network",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1771439678243,
+      "tag": "0004_blushing_lady_ursula",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1771440357368,
+      "tag": "0005_exotic_sleepwalker",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1771443433110,
+      "tag": "0006_lazy_the_watchers",
+      "breakpoints": true
     }
   ]
 }

@@ -94,6 +94,9 @@ export default function RootLayout() {
             <Stack.Screen name="login" />
             <Stack.Screen name="new-chat" />
             <Stack.Screen name="chat-detail" />
+            <Stack.Screen name="create-room" />
+            <Stack.Screen name="room-detail" />
+            <Stack.Screen name="invite-to-room" />
             <Stack.Screen name="oauth/callback" />
           </Stack>
           <StatusBar style="auto" />

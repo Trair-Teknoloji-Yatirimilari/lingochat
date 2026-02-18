@@ -8,6 +8,7 @@ import * as db from "./db";
 import { sendOTP, verifyOTP, resendOTP } from "./otp-service";
 import { readReceiptsRouter } from "./read-receipts-router";
 import { profileRouter } from "./profile-router";
+import { groupRouter } from "./group-router";
 
 export const appRouter = router({
   system: systemRouter,
@@ -72,11 +73,25 @@ export const appRouter = router({
             
             console.log("[Auth] Session cookie set for user:", user.id, "openId:", user.openId);
 
+            // Check if user has completed profile setup
+            const profile = await db.getUserProfile(result.userId);
+            const hasCompletedProfile = profile && 
+              profile.username && 
+              !profile.username.startsWith("user_") && 
+              profile.username.length >= 3;
+
+            console.log("[Auth] Profile check:", {
+              userId: result.userId,
+              username: profile?.username,
+              hasCompletedProfile,
+            });
+
             return {
               success: true,
               message: "OTP verified successfully",
               userId: result.userId,
               sessionToken, // Return token for React Native to store
+              hasCompletedProfile, // Indicate if user needs to complete profile
             };
           }
           return {
@@ -156,11 +171,42 @@ export const appRouter = router({
       .input(z.object({
         username: z.string().min(3).max(20).optional(),
         preferredLanguage: z.string().min(2).max(10).optional(),
+        showReadReceipts: z.boolean().optional(),
+        showOnlineStatus: z.boolean().optional(),
+        showProfilePhoto: z.boolean().optional(),
+        autoDeleteDuration: z.number().nullable().optional(), // null = disabled, 0 = immediate, 21600 = 6h, 43200 = 12h, 86400 = 24h
       }))
       .mutation(async ({ ctx, input }) => {
         await db.updateUserProfile(ctx.user.id, input);
         return { success: true };
       }),
+
+    deleteAccount: protectedProcedure.mutation(async ({ ctx }) => {
+      try {
+        // Delete profile picture from storage if exists
+        const profile = await db.getUserProfile(ctx.user.id);
+        if (profile?.profilePicturePublicId) {
+          try {
+            const { deleteProfilePicture } = await import("./profile-picture-service");
+            await deleteProfilePicture(profile.profilePicturePublicId);
+          } catch (error) {
+            console.error("Failed to delete profile picture:", error);
+          }
+        }
+
+        // Delete all user data from database
+        await db.deleteUserAccount(ctx.user.id);
+
+        // Clear session cookie
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
+
+        return { success: true, message: "Hesabınız başarıyla silindi" };
+      } catch (error) {
+        console.error("Account deletion error:", error);
+        return { success: false, message: "Hesap silinirken bir hata oluştu" };
+      }
+    }),
 
     uploadProfilePicture: protectedProcedure
       .input(z.object({
@@ -321,6 +367,23 @@ export const appRouter = router({
         const senderProfile = await db.getUserProfile(ctx.user.id);
         const senderLanguage = senderProfile?.preferredLanguage || "tr";
 
+        // Get conversation to find recipient
+        const conversation = await db.getConversation(input.conversationId);
+        if (!conversation) {
+          throw new Error("Conversation not found");
+        }
+
+        const recipientId =
+          conversation.participant1Id === ctx.user.id
+            ? conversation.participant2Id
+            : conversation.participant1Id;
+
+        const recipientProfile = await db.getUserProfile(recipientId);
+
+        // Calculate auto-delete time based on sender's settings
+        const autoDeleteDuration = senderProfile?.autoDeleteDuration;
+        const autoDeleteAt = db.calculateAutoDeleteTime(autoDeleteDuration);
+
         const message = await db.createMessage({
           conversationId: input.conversationId,
           senderId: ctx.user.id,
@@ -328,6 +391,7 @@ export const appRouter = router({
           senderLanguage,
           recipientLanguage: input.recipientLanguage,
           isTranslated: false,
+          autoDeleteAt,
         });
 
         if (senderLanguage !== input.recipientLanguage) {
@@ -373,7 +437,22 @@ export const appRouter = router({
         limit: z.number().default(50),
       }))
       .query(async ({ input }) => {
-        return db.getConversationMessages(input.conversationId, input.limit);
+        const messages = await db.getConversationMessages(input.conversationId, input.limit);
+        
+        // Get media for all messages
+        const messageIds = messages.map((m) => m.id);
+        const mediaMessages = await Promise.all(
+          messageIds.map((id) => db.getMediaMessageByMessageId(id))
+        );
+        const mediaMap = new Map(
+          mediaMessages.filter((m) => m).map((m) => [m!.messageId, m])
+        );
+
+        // Attach media to messages
+        return messages.map((msg) => ({
+          ...msg,
+          media: mediaMap.get(msg.id) || null,
+        }));
       }),
 
     delete: protectedProcedure
@@ -386,6 +465,112 @@ export const appRouter = router({
         } catch (error) {
           console.error("Message delete error:", error);
           return { success: false, message: "Failed to delete message" };
+        }
+      }),
+
+    sendMedia: protectedProcedure
+      .input(
+        z.object({
+          conversationId: z.number(),
+          mediaType: z.enum(["image", "document", "location", "contact"]),
+          mediaData: z.any(),
+          caption: z.string().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        try {
+          let mediaUrl: string | null = null;
+          let cloudinaryPublicId: string | null = null;
+          let fileName: string | null = null;
+          let fileSize: number | null = null;
+          let mimeType: string | null = null;
+
+          // Handle image/document upload
+          if (input.mediaType === "image" || input.mediaType === "document") {
+            const { v2: cloudinary } = await import("cloudinary");
+
+            cloudinary.config({
+              cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+              api_key: process.env.CLOUDINARY_API_KEY,
+              api_secret: process.env.CLOUDINARY_API_SECRET,
+            });
+
+            const uploadResult = await cloudinary.uploader.upload(
+              input.mediaData.uri || input.mediaData.fileContent,
+              {
+                folder: "lingo-chat/chat-media",
+                resource_type: "auto",
+                public_id: `${input.conversationId}-${Date.now()}`,
+              }
+            );
+
+            mediaUrl = uploadResult.secure_url;
+            cloudinaryPublicId = uploadResult.public_id;
+            fileName = input.mediaData.name || input.mediaData.fileName;
+            fileSize = input.mediaData.size || input.mediaData.fileSize;
+            mimeType = input.mediaData.mimeType;
+          }
+
+          // Create text message
+          const senderProfile = await db.getUserProfile(ctx.user.id);
+          const senderLanguage = senderProfile?.preferredLanguage || "tr";
+
+          const messageText =
+            input.caption ||
+            (input.mediaType === "image"
+              ? ""
+              : input.mediaType === "document"
+              ? `[Belge: ${fileName}]`
+              : input.mediaType === "location"
+              ? "[Konum]"
+              : "");
+
+          const message = await db.createMessage({
+            conversationId: input.conversationId,
+            senderId: ctx.user.id,
+            originalText: messageText,
+            senderLanguage,
+            recipientLanguage: senderLanguage,
+            isTranslated: false,
+          });
+
+          // Create media message
+          const mediaData: any = {
+            messageId: message.id,
+            conversationId: input.conversationId,
+            senderId: ctx.user.id,
+            mediaType: input.mediaType,
+            mediaUrl,
+            cloudinaryPublicId,
+            fileName,
+            fileSize,
+            mimeType,
+            caption: input.caption,
+          };
+
+          // Add location/contact specific fields
+          if (input.mediaType === "location") {
+            mediaData.latitude = input.mediaData.latitude;
+            mediaData.longitude = input.mediaData.longitude;
+            mediaData.address = input.mediaData.address;
+          } else if (input.mediaType === "contact") {
+            mediaData.contactName = input.mediaData.name;
+            mediaData.contactPhone = input.mediaData.phoneNumbers?.[0]?.number;
+          }
+
+          const mediaMessage = await db.createMediaMessage(mediaData);
+
+          return {
+            success: true,
+            message,
+            mediaMessage,
+          };
+        } catch (error) {
+          console.error("Media upload error:", error);
+          return {
+            success: false,
+            message: "Medya yüklenemedi",
+          };
         }
       }),
   }),
@@ -460,5 +645,8 @@ export const appRouter = router({
 
   // Read receipts routes
   readReceipts: readReceiptsRouter,
+
+  // Group routes
+  groups: groupRouter,
 });
 export type AppRouter = typeof appRouter;
