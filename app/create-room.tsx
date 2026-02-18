@@ -47,6 +47,8 @@ export default function CreateRoomScreen() {
             {
               text: "Odaya Git",
               onPress: () => {
+                // Invalidate query to refresh groups list
+                trpc.useContext().groups.getMyRooms.invalidate();
                 router.replace(`/room-detail?roomId=${roomId}` as any);
               },
             },

@@ -1,10 +1,11 @@
 import { View, Text, TouchableOpacity, ScrollView, TextInput, Alert, ActivityIndicator, RefreshControl } from "react-native";
-import { useState, useEffect } from "react";
-import { useRouter } from "expo-router";
+import { useState } from "react";
+import { useRouter, useFocusEffect } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { Ionicons } from "@expo/vector-icons";
 import { useColors } from "@/hooks/use-colors";
 import { trpc } from "@/lib/trpc";
+import { useCallback } from "react";
 
 export default function GroupsScreen() {
   const router = useRouter();
@@ -16,6 +17,13 @@ export default function GroupsScreen() {
   // Fetch user's active rooms
   const { data: myRooms, isLoading, refetch } = trpc.groups.getMyRooms.useQuery();
   const joinRoomMutation = trpc.groups.joinRoom.useMutation();
+
+  // Refetch when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch])
+  );
 
   const handleRefresh = async () => {
     setRefreshing(true);
