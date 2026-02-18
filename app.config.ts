@@ -110,7 +110,7 @@ const config: ExpoConfig = {
     [
       "expo-contacts",
       {
-        contactsPermission: "Allow $(PRODUCT_NAME) to access your contacts.",
+        contactsPermission: "$(PRODUCT_NAME) rehberinizdeki LingoChat kullanıcılarını gösterebilmek için kişilerinize erişmek istiyor.",
       },
     ],
     [
