@@ -108,6 +108,12 @@ const config: ExpoConfig = {
       },
     ],
     [
+      "expo-contacts",
+      {
+        contactsPermission: "Allow $(PRODUCT_NAME) to access your contacts.",
+      },
+    ],
+    [
       "expo-splash-screen",
       {
         image: "./assets/images/splash-icon.png",
