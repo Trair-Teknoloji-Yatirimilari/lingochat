@@ -1,11 +1,18 @@
 import { View, Text, TouchableOpacity, ScrollView, TextInput, Alert, ActivityIndicator, RefreshControl } from "react-native";
-import { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { useRouter, useFocusEffect } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { Ionicons } from "@expo/vector-icons";
 import { useColors } from "@/hooks/use-colors";
 import { trpc } from "@/lib/trpc";
-import { useCallback } from "react";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 
 export default function GroupsScreen() {
   const router = useRouter();
@@ -13,6 +20,10 @@ export default function GroupsScreen() {
   const [roomCode, setRoomCode] = useState("");
   const [joining, setJoining] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Animation values
+  const scale = useSharedValue(1);
+  const iconRotation = useSharedValue(0);
 
   // Fetch user's active rooms
   const { data: myRooms, isLoading, refetch } = trpc.groups.getMyRooms.useQuery();
@@ -24,6 +35,36 @@ export default function GroupsScreen() {
       refetch();
     }, [refetch])
   );
+
+  // Start icon animation on mount
+  React.useEffect(() => {
+    iconRotation.value = withRepeat(
+      withSequence(
+        withTiming(0, { duration: 0 }),
+        withTiming(90, { duration: 200 }),
+        withTiming(0, { duration: 200 })
+      ),
+      -1,
+      false
+    );
+  }, []);
+
+  const handlePressIn = () => {
+    scale.value = withSpring(0.95, { damping: 15 });
+  };
+
+  const handlePressOut = () => {
+    scale.value = withSpring(1, { damping: 15 });
+  };
+
+  // Animated styles
+  const animatedButtonStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const animatedIconStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${iconRotation.value}deg` }],
+  }));
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -88,22 +129,32 @@ export default function GroupsScreen() {
 
         {/* Action Buttons - Yan Yana */}
         <View className="px-6 pb-4 flex-row gap-3">
-          <TouchableOpacity
-            onPress={handleCreateRoom}
-            style={{
-              flex: 1,
-              backgroundColor: colors.primary,
-              borderRadius: 12,
-              padding: 14,
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 8,
-            }}
-          >
-            <Ionicons name="add-circle-outline" size={20} color="#ffffff" />
-            <Text className="text-white font-semibold text-sm">Yeni Oda</Text>
-          </TouchableOpacity>
+          <Animated.View style={[{ flex: 1 }, animatedButtonStyle]}>
+            <TouchableOpacity
+              onPress={handleCreateRoom}
+              onPressIn={handlePressIn}
+              onPressOut={handlePressOut}
+              style={{
+                backgroundColor: colors.primary,
+                borderRadius: 12,
+                padding: 14,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                shadowColor: colors.primary,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 8,
+              }}
+            >
+              <Animated.View style={animatedIconStyle}>
+                <Ionicons name="add-circle" size={20} color="#ffffff" />
+              </Animated.View>
+              <Text className="text-white font-semibold text-sm">Yeni Oda</Text>
+            </TouchableOpacity>
+          </Animated.View>
 
           <TouchableOpacity
             onPress={() => {

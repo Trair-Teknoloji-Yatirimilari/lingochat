@@ -149,6 +149,12 @@ class SDKServer {
     openId: string,
     options: { expiresInMs?: number; name?: string } = {},
   ): Promise<string> {
+    console.log("[Auth] Creating session token with:", {
+      openId,
+      appId: ENV.appId,
+      name: options.name || "",
+    });
+    
     return this.signSession(
       {
         openId,
@@ -167,6 +173,8 @@ class SDKServer {
     const expiresInMs = options.expiresInMs ?? ONE_YEAR_MS;
     const expirationSeconds = Math.floor((issuedAt + expiresInMs) / 1000);
     const secretKey = this.getSessionSecret();
+
+    console.log("[Auth] Signing JWT with payload:", JSON.stringify(payload, null, 2));
 
     return new SignJWT({
       openId: payload.openId,
@@ -191,17 +199,29 @@ class SDKServer {
       const { payload } = await jwtVerify(cookieValue, secretKey, {
         algorithms: ["HS256"],
       });
+      
+      console.log("[Auth] JWT payload:", JSON.stringify(payload, null, 2));
+      
       const { openId, appId, name } = payload as Record<string, unknown>;
 
-      if (!isNonEmptyString(openId) || !isNonEmptyString(appId) || !isNonEmptyString(name)) {
-        console.warn("[Auth] Session payload missing required fields");
+      console.log("[Auth] Extracted fields:", { 
+        openId: openId || "MISSING", 
+        appId: appId || "MISSING", 
+        name: name || "EMPTY" 
+      });
+
+      if (!isNonEmptyString(openId) || !isNonEmptyString(appId)) {
+        console.warn("[Auth] Session payload missing required fields (openId or appId)");
+        console.warn("[Auth] openId type:", typeof openId, "value:", openId);
+        console.warn("[Auth] appId type:", typeof appId, "value:", appId);
         return null;
       }
 
+      // name can be empty string for phone auth users
       return {
         openId,
         appId,
-        name,
+        name: typeof name === "string" ? name : "",
       };
     } catch (error) {
       console.warn("[Auth] Session verification failed", String(error));

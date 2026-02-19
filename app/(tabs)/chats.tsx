@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -14,6 +14,14 @@ import { trpc } from "@/lib/trpc";
 import { ScreenContainer } from "@/components/screen-container";
 import { Ionicons } from "@expo/vector-icons";
 import { useColors } from "@/hooks/use-colors";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 
 export default function ChatsScreen() {
   const router = useRouter();
@@ -22,11 +30,46 @@ export default function ChatsScreen() {
 
   const conversationsQuery = trpc.chat.list.useQuery();
 
+  // Animation values
+  const scale = useSharedValue(1);
+  const iconRotation = useSharedValue(0);
+
   const handleNewChat = () => {
     router.push({
       pathname: "/new-chat",
     });
   };
+
+  const handlePressIn = () => {
+    scale.value = withSpring(0.95, { damping: 15 });
+  };
+
+  const handlePressOut = () => {
+    scale.value = withSpring(1, { damping: 15 });
+  };
+
+  // Animated styles for button
+  const animatedButtonStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  // Icon rotation animation
+  const animatedIconStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${iconRotation.value}deg` }],
+  }));
+
+  // Start icon animation on mount
+  React.useEffect(() => {
+    iconRotation.value = withRepeat(
+      withSequence(
+        withTiming(0, { duration: 0 }),
+        withTiming(90, { duration: 200 }),
+        withTiming(0, { duration: 200 })
+      ),
+      -1,
+      false
+    );
+  }, []);
 
   if (conversationsQuery.isLoading) {
     return (
@@ -44,12 +87,27 @@ export default function ChatsScreen() {
         {/* Header */}
         <View className="flex-row items-center justify-between mb-2">
           <Text className="text-2xl font-bold text-foreground">Sohbetler</Text>
-          <TouchableOpacity
-            onPress={handleNewChat}
-            className="bg-primary rounded-full p-3"
-          >
-            <Ionicons name="add" size={24} color={colors.background} />
-          </TouchableOpacity>
+          <Animated.View style={animatedButtonStyle}>
+            <TouchableOpacity
+              onPress={handleNewChat}
+              onPressIn={handlePressIn}
+              onPressOut={handlePressOut}
+              style={{
+                backgroundColor: colors.primary,
+                borderRadius: 50,
+                padding: 12,
+                shadowColor: colors.primary,
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.25,
+                shadowRadius: 4,
+                elevation: 5,
+              }}
+            >
+              <Animated.View style={animatedIconStyle}>
+                <Ionicons name="add" size={24} color={colors.background} />
+              </Animated.View>
+            </TouchableOpacity>
+          </Animated.View>
         </View>
 
         {/* Conversations List */}
@@ -59,14 +117,41 @@ export default function ChatsScreen() {
             <Text className="text-muted text-center text-base">
               Henüz sohbet yok
             </Text>
-            <TouchableOpacity
-              onPress={handleNewChat}
-              className="bg-primary rounded-lg px-6 py-3 mt-4"
-            >
-              <Text className="text-background font-semibold">
-                Sohbet Başlat
-              </Text>
-            </TouchableOpacity>
+            <Animated.View style={animatedButtonStyle}>
+              <TouchableOpacity
+                onPress={handleNewChat}
+                onPressIn={handlePressIn}
+                onPressOut={handlePressOut}
+                style={{
+                  backgroundColor: colors.primary,
+                  borderRadius: 12,
+                  paddingHorizontal: 24,
+                  paddingVertical: 14,
+                  marginTop: 16,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 8,
+                  shadowColor: colors.primary,
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 8,
+                  elevation: 8,
+                }}
+              >
+                <Animated.View style={animatedIconStyle}>
+                  <Ionicons name="add-circle" size={24} color={colors.background} />
+                </Animated.View>
+                <Text
+                  style={{
+                    color: colors.background,
+                    fontWeight: "600",
+                    fontSize: 16,
+                  }}
+                >
+                  Sohbet Başlat
+                </Text>
+              </TouchableOpacity>
+            </Animated.View>
           </View>
         ) : (
           <FlatList
