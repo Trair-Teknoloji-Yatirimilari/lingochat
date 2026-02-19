@@ -12,6 +12,7 @@ import {
   Pressable,
   Image,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useAuth } from "@/hooks/use-auth";
 import { trpc } from "@/lib/trpc";
@@ -348,12 +349,32 @@ export default function ChatDetailScreen() {
                 <Pressable
                   onLongPress={() => handleLongPress(item.id, item.senderId)}
                   delayLongPress={500}
-                  className={`max-w-xs rounded-2xl p-3 ${
-                    isSender
-                      ? "bg-primary rounded-br-none"
-                      : "bg-surface border border-border rounded-bl-none"
-                  }`}
+                  style={{
+                    maxWidth: "75%",
+                    borderRadius: 16,
+                    overflow: "hidden",
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 1 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 2,
+                    elevation: 2,
+                  }}
                 >
+                  <LinearGradient
+                    colors={
+                      isSender
+                        ? [colors.primary, colors.primary + "E0"]
+                        : [colors.surface, colors.surface]
+                    }
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={{
+                      padding: 12,
+                      borderRadius: 16,
+                      borderWidth: isSender ? 0 : 1,
+                      borderColor: colors.border,
+                    }}
+                  >
                   {/* Media Display */}
                   {(item as any).media && (
                     <>
@@ -484,14 +505,56 @@ export default function ChatDetailScreen() {
                   {/* Text Message */}
                   {!(item as any).media && (
                     <View>
+                      {/* Original Text */}
                       <Text
                         className={`text-base ${
                           isSender ? "text-background" : "text-foreground"
                         }`}
-                        style={{ paddingRight: 60 }}
+                        style={{ paddingRight: 60, lineHeight: 20 }}
                       >
                         {item.originalText}
                       </Text>
+                      
+                      {/* Translation */}
+                      {item.isTranslated && item.translatedText && (
+                        <View
+                          style={{
+                            marginTop: 8,
+                            paddingTop: 8,
+                            borderTopWidth: 1,
+                            borderTopColor: isSender 
+                              ? "rgba(255, 255, 255, 0.2)" 
+                              : colors.border + "60",
+                          }}
+                        >
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 4 }}>
+                            <Ionicons 
+                              name="language" 
+                              size={12} 
+                              color={isSender ? "rgba(255, 255, 255, 0.6)" : colors.muted} 
+                            />
+                            <Text
+                              style={{
+                                fontSize: 10,
+                                color: isSender ? "rgba(255, 255, 255, 0.6)" : colors.muted,
+                                fontWeight: "600",
+                              }}
+                            >
+                              Çeviri
+                            </Text>
+                          </View>
+                          <Text
+                            className={`text-sm ${
+                              isSender
+                                ? "text-background opacity-90"
+                                : "text-foreground opacity-80"
+                            }`}
+                            style={{ paddingRight: 60, lineHeight: 18, fontStyle: "italic" }}
+                          >
+                            {item.translatedText}
+                          </Text>
+                        </View>
+                      )}
                       
                       {/* Time and Read Receipt - Bottom Right */}
                       <View
@@ -524,53 +587,9 @@ export default function ChatDetailScreen() {
                       </View>
                     </View>
                   )}
-                  
-                  {!(item as any).media && item.isTranslated && item.translatedText && (
-                    <View className="mt-2 pt-2 border-t border-opacity-30 border-current">
-                      <Text
-                        className={`text-sm italic ${
-                          isSender
-                            ? "text-background opacity-80"
-                            : "text-muted"
-                        }`}
-                        style={{ paddingRight: 60 }}
-                      >
-                        {item.translatedText}
-                      </Text>
-                      
-                      {/* Time and Read Receipt for Translation - Bottom Right */}
-                      <View
-                        style={{
-                          position: "absolute",
-                          bottom: 0,
-                          right: 0,
-                          flexDirection: "row",
-                          alignItems: "center",
-                          gap: 4,
-                        }}
-                      >
-                        <Text
-                          className={`text-xs ${
-                            isSender
-                              ? "text-background opacity-70"
-                              : "text-muted"
-                          }`}
-                        >
-                          {new Date(item.createdAt).toLocaleTimeString([], { 
-                            hour: '2-digit', 
-                            minute: '2-digit' 
-                          })}
-                        </Text>
-                        {isSender && (
-                          <Text className={`text-xs ${isRead ? "text-green-400" : "text-background opacity-70"}`}>
-                            {isRead ? "✓✓" : "✓"}
-                          </Text>
-                        )}
-                      </View>
-                    </View>
-                  )}
-                </Pressable>
-              </View>
+                </LinearGradient>
+              </Pressable>
+            </View>
             );
           }}
           inverted
