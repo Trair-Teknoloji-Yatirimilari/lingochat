@@ -1,7 +1,6 @@
-import { Tabs, useRouter } from "expo-router";
+import { Tabs } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Image, View, TouchableOpacity, StyleSheet } from "react-native";
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from "react-native-reanimated";
+import { Image, View, StyleSheet } from "react-native";
 
 import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -53,42 +52,6 @@ function ProfileTabIcon({ color, focused }: { color: string; focused: boolean })
   );
 }
 
-// Floating Action Button Component
-function FloatingActionButton() {
-  const colors = useColors();
-  const router = useRouter();
-  const scale = useSharedValue(1);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
-  const handlePress = () => {
-    scale.value = withSpring(0.9, { damping: 10 }, () => {
-      scale.value = withSpring(1);
-    });
-    router.push("/new-chat");
-  };
-
-  return (
-    <TouchableOpacity
-      onPress={handlePress}
-      activeOpacity={0.8}
-      style={[
-        styles.fab,
-        {
-          backgroundColor: colors.primary,
-          shadowColor: colors.primary,
-        },
-      ]}
-    >
-      <Animated.View style={animatedStyle}>
-        <Ionicons name="add" size={32} color="#FFFFFF" />
-      </Animated.View>
-    </TouchableOpacity>
-  );
-}
-
 export default function TabLayout() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -96,117 +59,83 @@ export default function TabLayout() {
   const tabBarHeight = 70 + bottomPadding;
 
   return (
-    <>
-      <Tabs
-        screenOptions={{
-          tabBarActiveTintColor: colors.primary,
-          headerShown: false,
-          tabBarButton: HapticTab,
-          tabBarStyle: {
-            position: "absolute",
-            paddingTop: 12,
-            paddingBottom: bottomPadding,
-            height: tabBarHeight,
-            backgroundColor: colors.background + "F5",
-            borderTopWidth: 0.5,
-            borderTopColor: colors.border + "60",
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: -2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 8,
-            elevation: 8,
-          },
+    <Tabs
+      screenOptions={{
+        tabBarActiveTintColor: colors.primary,
+        headerShown: false,
+        tabBarButton: HapticTab,
+        tabBarStyle: {
+          position: "absolute",
+          paddingTop: 12,
+          paddingBottom: bottomPadding,
+          height: tabBarHeight,
+          backgroundColor: colors.background + "F5",
+          borderTopWidth: 0.5,
+          borderTopColor: colors.border + "60",
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 8,
+          elevation: 8,
+        },
+      }}
+    >
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: "Ana Sayfa",
+          tabBarIcon: ({ color, focused }) => (
+            <IconSymbol 
+              size={26} 
+              name={focused ? "house.fill" : "house"} 
+              color={color} 
+            />
+          ),
         }}
-      >
-        <Tabs.Screen
-          name="index"
-          options={{
-            title: "Ana Sayfa",
-            tabBarIcon: ({ color, focused }) => (
-              <IconSymbol 
-                size={26} 
-                name={focused ? "house.fill" : "house"} 
-                color={color} 
-              />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="search"
-          options={{
-            title: "Ara",
-            tabBarIcon: ({ color, focused }) => (
-              <IconSymbol 
-                size={26} 
-                name={focused ? "phone.fill" : "phone"} 
-                color={color} 
-              />
-            ),
-          }}
-        />
-        
-        {/* Placeholder for FAB */}
-        <Tabs.Screen
-          name="chats"
-          options={{
-            title: "",
-            tabBarIcon: () => null,
-            tabBarButton: () => <View style={{ width: 60 }} />,
-          }}
-          listeners={{
-            tabPress: (e) => {
-              e.preventDefault();
-            },
-          }}
-        />
-        
-        <Tabs.Screen
-          name="groups"
-          options={{
-            title: "Grup",
-            tabBarIcon: ({ color, focused }) => (
-              <IconSymbol 
-                size={26} 
-                name={focused ? "person.3.fill" : "person.3"} 
-                color={color} 
-              />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="profile"
-          options={{
-            title: "Profil",
-            tabBarIcon: ({ color, focused }) => <ProfileTabIcon color={color} focused={focused} />,
-          }}
-        />
-      </Tabs>
+      />
+      <Tabs.Screen
+        name="chats"
+        options={{
+          title: "Sohbetler",
+          tabBarIcon: ({ color, focused }) => (
+            <IconSymbol 
+              size={26} 
+              name={focused ? "paperplane.fill" : "paperplane"} 
+              color={color} 
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="groups"
+        options={{
+          title: "Grup",
+          tabBarIcon: ({ color, focused }) => (
+            <IconSymbol 
+              size={26} 
+              name={focused ? "person.3.fill" : "person.3"} 
+              color={color} 
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "Profil",
+          tabBarIcon: ({ color, focused }) => <ProfileTabIcon color={color} focused={focused} />,
+        }}
+      />
       
-      {/* Floating Action Button */}
-      <View style={[styles.fabContainer, { bottom: tabBarHeight - 28 }]}>
-        <FloatingActionButton />
-      </View>
-    </>
+      {/* Hidden tab - only accessible via navigation */}
+      <Tabs.Screen
+        name="search"
+        options={{
+          href: null, // Hide from tab bar
+        }}
+      />
+    </Tabs>
   );
 }
 
-const styles = StyleSheet.create({
-  fab: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  fabContainer: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    alignItems: "center",
-    zIndex: 1000,
-  },
-});
+const styles = StyleSheet.create({});

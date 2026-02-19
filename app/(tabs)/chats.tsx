@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  TextInput,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/hooks/use-auth";
@@ -30,6 +31,7 @@ export default function ChatsScreen() {
   const router = useRouter();
   const colors = useColors();
   const { user } = useAuth();
+  const [searchQuery, setSearchQuery] = useState("");
 
   const conversationsQuery = trpc.chat.list.useQuery();
 
@@ -83,6 +85,17 @@ export default function ChatsScreen() {
   }
 
   const conversations = conversationsQuery.data || [];
+  
+  // Filter conversations based on search query
+  const filteredConversations = conversations.filter((conv) => {
+    if (!searchQuery.trim()) return true;
+    
+    const query = searchQuery.toLowerCase();
+    const otherUserName = conv.otherUserName?.toLowerCase() || "";
+    const lastMessage = conv.lastMessage?.toLowerCase() || "";
+    
+    return otherUserName.includes(query) || lastMessage.includes(query);
+  });
 
   return (
     <ScreenContainer className="p-4">
@@ -98,7 +111,7 @@ export default function ChatsScreen() {
               style={{
                 backgroundColor: colors.primary,
                 borderRadius: 50,
-                padding: 12,
+                padding: 10,
                 shadowColor: colors.primary,
                 shadowOffset: { width: 0, height: 2 },
                 shadowOpacity: 0.25,
@@ -107,10 +120,44 @@ export default function ChatsScreen() {
               }}
             >
               <Animated.View style={animatedIconStyle}>
-                <Ionicons name="add" size={24} color={colors.background} />
+                <Ionicons name="add" size={20} color={colors.background} />
               </Animated.View>
             </TouchableOpacity>
           </Animated.View>
+        </View>
+
+        {/* Search Bar */}
+        <View
+          style={{
+            backgroundColor: colors.surface,
+            borderRadius: 12,
+            paddingHorizontal: 12,
+            paddingVertical: 10,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 16,
+            borderWidth: 1,
+            borderColor: colors.border,
+          }}
+        >
+          <Ionicons name="search" size={20} color={colors.muted} />
+          <TextInput
+            placeholder="Sohbet veya mesaj ara..."
+            placeholderTextColor={colors.muted}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            style={{
+              flex: 1,
+              fontSize: 15,
+              color: colors.foreground,
+            }}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery("")}>
+              <Ionicons name="close-circle" size={20} color={colors.muted} />
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Conversations List */}
@@ -158,7 +205,7 @@ export default function ChatsScreen() {
           </View>
         ) : (
           <FlatList
-            data={conversations}
+            data={filteredConversations}
             keyExtractor={(item) => item.id.toString()}
             renderItem={({ item, index }) => (
               <Animated.View

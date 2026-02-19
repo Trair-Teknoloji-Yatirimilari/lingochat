@@ -312,6 +312,20 @@ export default function ChatDetailScreen() {
             </Text>
             <Text className="text-xs text-muted">Conversation #{conversationId}</Text>
           </View>
+
+          {/* Voice Call Button */}
+          <TouchableOpacity
+            onPress={() => Alert.alert("Sesli Arama", "Sesli arama özelliği yakında eklenecek")}
+            style={{
+              backgroundColor: colors.surface,
+              borderRadius: 50,
+              padding: 10,
+              borderWidth: 1,
+              borderColor: colors.border,
+            }}
+          >
+            <Ionicons name="call" size={20} color={colors.primary} />
+          </TouchableOpacity>
         </View>
 
         {/* Messages List */}
