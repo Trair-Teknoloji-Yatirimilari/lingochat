@@ -36,6 +36,23 @@ const resources = {
         enterCode: 'Enter the 6-digit code',
         resendCode: 'Resend Code',
         verifying: 'Verifying...',
+        continue: 'Continue',
+        verifyTitle: 'Verify Code',
+        verifyDescription: 'Enter the 6-digit verification code sent to',
+        resendTimer: 'Resend code in',
+        invalidPhone: 'Invalid phone number',
+        invalidCode: 'Invalid verification code',
+        otpSent: 'OTP sent successfully',
+        otpFailed: 'Failed to send OTP',
+        verifyFailed: 'Failed to verify OTP',
+        privacyNotice: 'By continuing, you agree to our',
+        privacyPolicy: 'Privacy Policy',
+        and: 'and',
+        termsOfService: 'Terms of Service',
+        companyInfo: 'LingoChat is a product of TrairX Technology O.Ü',
+        internationalRates: 'International rates may apply. Message and data rates also apply.',
+        selectCountry: 'Select Country',
+        appTagline: 'Break language barriers, connect with the world',
       },
       
       // Profile Setup
@@ -210,6 +227,23 @@ const resources = {
         enterCode: '6 haneli kodu girin',
         resendCode: 'Kodu Tekrar Gönder',
         verifying: 'Doğrulanıyor...',
+        continue: 'Devam Et',
+        verifyTitle: 'Kodu Doğrulayın',
+        verifyDescription: 'numarasına gönderilen 6 haneli doğrulama kodunu girin',
+        resendTimer: 'Kodu tekrar gönder',
+        invalidPhone: 'Geçersiz telefon numarası',
+        invalidCode: 'Geçersiz doğrulama kodu',
+        otpSent: 'OTP başarıyla gönderildi',
+        otpFailed: 'OTP gönderilemedi',
+        verifyFailed: 'OTP doğrulanamadı',
+        privacyNotice: 'Devam ederek',
+        privacyPolicy: 'Gizlilik Politikası',
+        and: 've',
+        termsOfService: 'Kullanım Şartları',
+        companyInfo: 'LingoChat, TrairX Technology O.Ü şirketinin ürünüdür',
+        internationalRates: 'Uluslararası ücretler uygulanabilir. Mesaj ve veri ücretleri de geçerlidir.',
+        selectCountry: 'Ülke Seçin',
+        appTagline: 'Dil bariyerlerini kaldırın, dünyayla bağlantı kurun',
       },
       
       // Profile Setup
@@ -358,7 +392,7 @@ i18n
   .use(initReactI18next)
   .init({
     resources,
-    lng: Localization.getLocales()[0]?.languageCode || 'en', // Device language
+    lng: 'en', // Default to English for Apple Store
     fallbackLng: 'en',
     interpolation: {
       escapeValue: false,

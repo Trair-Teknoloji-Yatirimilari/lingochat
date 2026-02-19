@@ -14,6 +14,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
+import { useI18n } from "@/hooks/use-i18n";
 import { Ionicons } from "@expo/vector-icons";
 import { isValidPhoneNumber } from "libphonenumber-js";
 import { trpc } from "@/lib/trpc";
@@ -47,6 +48,7 @@ const COUNTRY_CODES: Record<string, { name: string; code: string; flag: string }
 export default function OtpLoginScreen() {
   const router = useRouter();
   const colors = useColors();
+  const { t } = useI18n();
   const [step, setStep] = useState<LoginStep>("phone");
   const [selectedCountry, setSelectedCountry] = useState("TR");
   const [phoneNumber, setPhoneNumber] = useState("");
