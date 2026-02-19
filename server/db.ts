@@ -177,8 +177,40 @@ export async function getUserConversations(userId: number) {
   if (!db) return [];
   
   const result = await db.select().from(conversations)
-    .where(or(eq(conversations.participant1Id, userId), eq(conversations.participant2Id, userId)));
+    .where(
+      and(
+        or(eq(conversations.participant1Id, userId), eq(conversations.participant2Id, userId)),
+        or(
+          and(eq(conversations.participant1Id, userId), eq(conversations.deletedByUser1, false)),
+          and(eq(conversations.participant2Id, userId), eq(conversations.deletedByUser2, false))
+        )
+      )
+    );
   return result;
+}
+
+export async function deleteConversationForUser(conversationId: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  // Get conversation to determine which user is deleting
+  const conversation = await getConversation(conversationId);
+  if (!conversation) throw new Error("Conversation not found");
+  
+  // Soft delete: mark as deleted for this user
+  if (conversation.participant1Id === userId) {
+    await db.update(conversations)
+      .set({ deletedByUser1: true })
+      .where(eq(conversations.id, conversationId));
+  } else if (conversation.participant2Id === userId) {
+    await db.update(conversations)
+      .set({ deletedByUser2: true })
+      .where(eq(conversations.id, conversationId));
+  } else {
+    throw new Error("User is not a participant in this conversation");
+  }
+  
+  return true;
 }
 
 // Message queries

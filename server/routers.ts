@@ -426,6 +426,26 @@ export const appRouter = router({
           message: `Invitation sent to ${input.contactName}`,
         };
       }),
+
+    delete: protectedProcedure
+      .input(z.object({
+        conversationId: z.number(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          await db.deleteConversationForUser(input.conversationId, ctx.user.id);
+          return {
+            success: true,
+            message: "Sohbet silindi",
+          };
+        } catch (error) {
+          console.error("Delete conversation error:", error);
+          return {
+            success: false,
+            message: "Sohbet silinemedi",
+          };
+        }
+      }),
   }),
 
   // Conversation routes

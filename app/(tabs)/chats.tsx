@@ -243,6 +243,10 @@ function ConversationCard({
   const { user } = useAuth();
   const translateX = useSharedValue(0);
   const cardScale = useSharedValue(1);
+  
+  // Delete mutation
+  const deleteConversationMutation = trpc.chat.delete.useMutation();
+  const utils = trpc.useUtils();
 
   // Karşı tarafın ID'sini bul
   const otherUserId =
@@ -295,13 +299,41 @@ function ConversationCard({
     cardScale.value = withSpring(1);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
+    // Mock conversation kontrolü (ID 9001-9006 arası)
+    const isMockConversation = conversation.id >= 9001 && conversation.id <= 9006;
+    
     Alert.alert(
       "Sohbeti Sil",
       "Bu sohbeti silmek istediğinizden emin misiniz?",
       [
         { text: "İptal", style: "cancel" },
-        { text: "Sil", style: "destructive" },
+        { 
+          text: "Sil", 
+          style: "destructive",
+          onPress: async () => {
+            if (isMockConversation) {
+              // Mock sohbet için sadece UI'dan kaldır
+              Alert.alert("Demo", "Mock sohbetler silinemez (sadece demo amaçlı)");
+              translateX.value = withSpring(0);
+              return;
+            }
+            
+            try {
+              await deleteConversationMutation.mutateAsync({
+                conversationId: conversation.id,
+              });
+              
+              // Refresh conversation list
+              utils.chat.list.invalidate();
+              
+              // Reset swipe position
+              translateX.value = withSpring(0);
+            } catch (error) {
+              Alert.alert("Hata", "Sohbet silinemedi");
+            }
+          },
+        },
       ]
     );
   };

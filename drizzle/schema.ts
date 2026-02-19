@@ -77,6 +77,8 @@ export const conversations = pgTable("conversations", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   participant1Id: integer("participant1Id").notNull(),
   participant2Id: integer("participant2Id").notNull(),
+  deletedByUser1: boolean("deletedByUser1").default(false).notNull(),
+  deletedByUser2: boolean("deletedByUser2").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
