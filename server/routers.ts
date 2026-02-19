@@ -9,6 +9,8 @@ import { sendOTP, verifyOTP, resendOTP } from "./otp-service";
 import { readReceiptsRouter } from "./read-receipts-router";
 import { profileRouter } from "./profile-router";
 import { groupRouter } from "./group-router";
+import { pushNotificationRouter } from "./push-notification-router";
+import { blockingRouter } from "./blocking-router";
 
 export const appRouter = router({
   system: systemRouter,
@@ -62,9 +64,10 @@ export const appRouter = router({
             // Import sdk to create session token
             const { sdk } = await import("./_core/sdk");
             
-            // Create a proper JWT session token
+            // Create a proper JWT session token with userId
             const sessionToken = await sdk.createSessionToken(user.openId, {
               name: user.name || input.phoneNumber,
+              userId: user.id,
             });
 
             // Set the session cookie with JWT token
@@ -90,6 +93,14 @@ export const appRouter = router({
               success: true,
               message: "OTP verified successfully",
               userId: result.userId,
+              user: {
+                id: user.id,
+                openId: user.openId,
+                name: user.name,
+                email: user.email,
+                loginMethod: user.loginMethod,
+                lastSignedIn: user.lastSignedIn,
+              },
               sessionToken, // Return token for React Native to store
               hasCompletedProfile, // Indicate if user needs to complete profile
             };
@@ -140,6 +151,7 @@ export const appRouter = router({
           userId: ctx.user.id,
           username: input.username,
           preferredLanguage: input.preferredLanguage,
+          autoDeleteDuration: 86400, // Default: 24 hours
         });
       }),
 
@@ -459,6 +471,7 @@ export const appRouter = router({
         conversationId: z.number(),
         text: z.string().min(1),
         recipientLanguage: z.string().min(2).max(10),
+        replyToMessageId: z.number().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const senderProfile = await db.getUserProfile(ctx.user.id);
@@ -474,6 +487,12 @@ export const appRouter = router({
           conversation.participant1Id === ctx.user.id
             ? conversation.participant2Id
             : conversation.participant1Id;
+
+        // Check if users have blocked each other
+        const areBlocked = await db.areUsersBlocked(ctx.user.id, recipientId);
+        if (areBlocked) {
+          throw new Error("Cannot send message to blocked user");
+        }
 
         const recipientProfile = await db.getUserProfile(recipientId);
 
@@ -491,6 +510,15 @@ export const appRouter = router({
           autoDeleteAt,
         });
 
+        // Get reply message if exists
+        let replyToMessage = null;
+        if (input.replyToMessageId) {
+          replyToMessage = await db.getMessage(input.replyToMessageId);
+        }
+
+        let translatedText = input.text;
+        let isTranslated = false;
+
         if (senderLanguage !== input.recipientLanguage) {
           try {
             const translationResponse = await invokeLLM({
@@ -507,25 +535,48 @@ export const appRouter = router({
             });
 
             const content = translationResponse.choices[0]?.message?.content;
-            const translatedText = typeof content === 'string' ? content : input.text;
+            translatedText = typeof content === 'string' ? content : input.text;
+            isTranslated = true;
 
             await db.updateMessage(message.id, {
               translatedText,
               isTranslated: true,
             });
-
-            return {
-              ...message,
-              translatedText,
-              isTranslated: true,
-            };
           } catch (error) {
             console.error("Translation error:", error);
-            return message;
           }
         }
 
-        return message;
+        // Send push notification to recipient
+        try {
+          const { sendPushNotification } = await import("./push-notification-service");
+          
+          await sendPushNotification({
+            userId: recipientId,
+            title: senderProfile?.username || "Yeni Mesaj",
+            body: translatedText.substring(0, 100),
+            data: {
+              type: "direct_message",
+              conversationId: input.conversationId,
+              messageId: message.id,
+              senderId: ctx.user.id,
+            },
+          });
+        } catch (error) {
+          console.error("Failed to send push notification:", error);
+          // Don't fail the message send if push notification fails
+        }
+
+        return {
+          ...message,
+          translatedText,
+          isTranslated,
+          replyTo: replyToMessage ? {
+            id: replyToMessage.id,
+            senderId: replyToMessage.senderId,
+            originalText: replyToMessage.originalText,
+          } : null,
+        };
       }),
 
     list: protectedProcedure
@@ -568,6 +619,11 @@ export const appRouter = router({
               deletedAt: null,
               deletedBy: null,
               autoDeleteAt: null,
+              replyTo: {
+                id: input.conversationId * 1000 + 1,
+                senderId: input.conversationId === 9001 ? 101 : ctx.user.id,
+                originalText: "Hello! How are you?",
+              },
             },
             {
               id: input.conversationId * 1000 + 3,
@@ -598,6 +654,11 @@ export const appRouter = router({
               deletedAt: null,
               deletedBy: null,
               autoDeleteAt: null,
+              replyTo: {
+                id: input.conversationId * 1000 + 3,
+                senderId: input.conversationId === 9001 ? 101 : ctx.user.id,
+                originalText: "The weather is beautiful today, I'm thinking of going outside 🌞",
+              },
             },
             {
               id: input.conversationId * 1000 + 5,
@@ -628,6 +689,11 @@ export const appRouter = router({
               deletedAt: null,
               deletedBy: null,
               autoDeleteAt: null,
+              replyTo: {
+                id: input.conversationId * 1000 + 5,
+                senderId: input.conversationId === 9001 ? 101 : ctx.user.id,
+                originalText: "Shall we meet at 3:00 PM?",
+              },
             },
           ];
           
@@ -859,5 +925,11 @@ export const appRouter = router({
 
   // Group routes
   groups: groupRouter,
+
+  // Push notification routes
+  pushNotifications: pushNotificationRouter,
+
+  // Blocking routes
+  blocking: blockingRouter,
 });
 export type AppRouter = typeof appRouter;

@@ -20,6 +20,7 @@ export default function GroupsScreen() {
   const [roomCode, setRoomCode] = useState("");
   const [joining, setJoining] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Animation values
   const scale = useSharedValue(1);
@@ -110,6 +111,17 @@ export default function GroupsScreen() {
   const handleRoomPress = (roomId: number) => {
     router.push(`/room-detail?roomId=${roomId}` as any);
   };
+
+  // Filter rooms based on search query
+  const filteredRooms = myRooms?.filter((room) => {
+    if (!searchQuery.trim()) return true;
+    
+    const query = searchQuery.toLowerCase();
+    const roomName = room.name?.toLowerCase() || "";
+    const roomCode = room.roomCode?.toLowerCase() || "";
+    
+    return roomName.includes(query) || roomCode.includes(query);
+  }) || [];
 
   return (
     <ScreenContainer>
@@ -212,6 +224,43 @@ export default function GroupsScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Search Bar */}
+        {myRooms && myRooms.length > 0 && (
+          <View className="px-6 pb-4">
+            <View
+              style={{
+                backgroundColor: colors.surface,
+                borderRadius: 12,
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
+                borderWidth: 1,
+                borderColor: colors.border,
+              }}
+            >
+              <Ionicons name="search" size={20} color={colors.muted} />
+              <TextInput
+                placeholder="Oda adı veya kod ara..."
+                placeholderTextColor={colors.muted}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                style={{
+                  flex: 1,
+                  fontSize: 15,
+                  color: colors.foreground,
+                }}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery("")}>
+                  <Ionicons name="close-circle" size={20} color={colors.muted} />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        )}
+
         {/* Active Rooms Section */}
         <View className="px-6">
           <View className="flex-row items-center justify-between mb-3">
@@ -226,7 +275,7 @@ export default function GroupsScreen() {
                 }}
               >
                 <Text style={{ fontSize: 11, fontWeight: "600", color: colors.primary }}>
-                  {myRooms.length}
+                  {searchQuery ? filteredRooms.length : myRooms.length}
                 </Text>
               </View>
             )}
@@ -246,9 +295,9 @@ export default function GroupsScreen() {
               <ActivityIndicator color={colors.primary} size="small" />
               <Text className="text-xs text-muted mt-3">Yükleniyor...</Text>
             </View>
-          ) : myRooms && myRooms.length > 0 ? (
+          ) : filteredRooms.length > 0 ? (
             <View className="gap-2">
-              {myRooms.map((room) => (
+              {filteredRooms.map((room) => (
                 <TouchableOpacity
                   key={room.id}
                   onPress={() => handleRoomPress(room.id)}
@@ -310,6 +359,37 @@ export default function GroupsScreen() {
                   </View>
                 </TouchableOpacity>
               ))}
+            </View>
+          ) : searchQuery ? (
+            <View
+              style={{
+                backgroundColor: colors.surface,
+                borderRadius: 12,
+                padding: 32,
+                alignItems: "center",
+                borderWidth: 1,
+                borderColor: colors.border,
+              }}
+            >
+              <View
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 28,
+                  backgroundColor: colors.muted + "15",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  marginBottom: 12,
+                }}
+              >
+                <Ionicons name="search-outline" size={28} color={colors.muted} />
+              </View>
+              <Text className="text-sm font-semibold text-foreground mb-1">
+                Sonuç Bulunamadı
+              </Text>
+              <Text className="text-xs text-muted text-center">
+                "{searchQuery}" için oda bulunamadı
+              </Text>
             </View>
           ) : (
             <View

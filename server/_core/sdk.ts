@@ -22,6 +22,7 @@ export type SessionPayload = {
   openId: string;
   appId: string;
   name: string;
+  userId?: number; // Optional for backward compatibility
 };
 
 const EXCHANGE_TOKEN_PATH = `/webdev.v1.WebDevAuthPublicService/ExchangeToken`;
@@ -147,12 +148,13 @@ class SDKServer {
    */
   async createSessionToken(
     openId: string,
-    options: { expiresInMs?: number; name?: string } = {},
+    options: { expiresInMs?: number; name?: string; userId?: number } = {},
   ): Promise<string> {
     console.log("[Auth] Creating session token with:", {
       openId,
       appId: ENV.appId,
       name: options.name || "",
+      userId: options.userId,
     });
     
     return this.signSession(
@@ -160,6 +162,7 @@ class SDKServer {
         openId,
         appId: ENV.appId,
         name: options.name || "",
+        userId: options.userId,
       },
       options,
     );
@@ -176,11 +179,18 @@ class SDKServer {
 
     console.log("[Auth] Signing JWT with payload:", JSON.stringify(payload, null, 2));
 
-    return new SignJWT({
+    const jwtPayload: any = {
       openId: payload.openId,
       appId: payload.appId,
       name: payload.name,
-    })
+    };
+
+    // Add userId if provided
+    if (payload.userId !== undefined) {
+      jwtPayload.userId = payload.userId;
+    }
+
+    return new SignJWT(jwtPayload)
       .setProtectedHeader({ alg: "HS256", typ: "JWT" })
       .setExpirationTime(expirationSeconds)
       .sign(secretKey);

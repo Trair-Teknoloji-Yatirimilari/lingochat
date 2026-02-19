@@ -157,6 +157,19 @@ export default function OtpLoginScreen() {
           console.log("[OTP] Session token saved");
         }
 
+        // User bilgisini cache'e kaydet
+        if (result.user) {
+          await Auth.setUserInfo({
+            id: result.user.id,
+            openId: result.user.openId,
+            name: result.user.name,
+            email: result.user.email,
+            loginMethod: result.user.loginMethod,
+            lastSignedIn: new Date(result.user.lastSignedIn),
+          });
+          console.log("[OTP] User info saved to cache:", result.user.id);
+        }
+
         console.log("[OTP] Verify result:", {
           hasCompletedProfile: result.hasCompletedProfile,
           userId: result.userId,

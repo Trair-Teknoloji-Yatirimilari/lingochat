@@ -32,7 +32,7 @@ export default function ProfileScreen() {
   const showReadReceipts = profileQuery.data?.showReadReceipts ?? true;
   const showOnlineStatus = profileQuery.data?.showOnlineStatus ?? true;
   const showProfilePhoto = profileQuery.data?.showProfilePhoto ?? true;
-  const autoDeleteDuration = profileQuery.data?.autoDeleteDuration ?? null;
+  const autoDeleteDuration = profileQuery.data?.autoDeleteDuration ?? 86400; // Default: 24 hours
 
   const updateProfileMutation = trpc.profile.update.useMutation({
     onSuccess: () => {
@@ -613,58 +613,6 @@ export default function ProfileScreen() {
               </View>
 
               <View className="gap-2">
-                <TouchableOpacity
-                  onPress={() => handleAutoDeleteChange(null)}
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: 12,
-                    borderRadius: 12,
-                    backgroundColor:
-                      autoDeleteDuration === null ? colors.primary + "20" : colors.background,
-                  }}
-                >
-                  <Text
-                    className="text-sm"
-                    style={{
-                      color: autoDeleteDuration === null ? colors.primary : colors.foreground,
-                      fontWeight: autoDeleteDuration === null ? "600" : "normal",
-                    }}
-                  >
-                    Kapalı
-                  </Text>
-                  {autoDeleteDuration === null && (
-                    <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
-                  )}
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => handleAutoDeleteChange(0)}
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: 12,
-                    borderRadius: 12,
-                    backgroundColor:
-                      autoDeleteDuration === 0 ? colors.primary + "20" : colors.background,
-                  }}
-                >
-                  <Text
-                    className="text-sm"
-                    style={{
-                      color: autoDeleteDuration === 0 ? colors.primary : colors.foreground,
-                      fontWeight: autoDeleteDuration === 0 ? "600" : "normal",
-                    }}
-                  >
-                    Okunduğu Anda
-                  </Text>
-                  {autoDeleteDuration === 0 && (
-                    <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
-                  )}
-                </TouchableOpacity>
-
                 <TouchableOpacity
                   onPress={() => handleAutoDeleteChange(21600)}
                   style={{

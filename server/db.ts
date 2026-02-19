@@ -1,4 +1,4 @@
-import { eq, or } from "drizzle-orm";
+import { eq, or, and } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { 
@@ -11,6 +11,7 @@ import {
   readReceipts, 
   phoneVerifications,
   otpCodes,
+  blockedUsers,
   InsertUserProfile, 
   InsertConversation, 
   InsertMessage, 
@@ -792,3 +793,87 @@ export async function deleteExpiredGroupMessages(messageIds: number[]) {
     .set({ isDeleted: true })
     .where(inArray(groupMessages.id, messageIds));
 }
+
+
+// Blocked Users functions
+export async function blockUser(blockerId: number, blockedId: number, reason?: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const [blocked] = await db.insert(blockedUsers).values({
+    blockerId,
+    blockedId,
+    reason,
+  }).returning();
+
+  return blocked;
+}
+
+export async function unblockUser(blockerId: number, blockedId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.delete(blockedUsers)
+    .where(and(
+      eq(blockedUsers.blockerId, blockerId),
+      eq(blockedUsers.blockedId, blockedId)
+    ));
+}
+
+export async function isUserBlocked(blockerId: number, blockedId: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+
+  const [result] = await db.select()
+    .from(blockedUsers)
+    .where(and(
+      eq(blockedUsers.blockerId, blockerId),
+      eq(blockedUsers.blockedId, blockedId)
+    ))
+    .limit(1);
+
+  return !!result;
+}
+
+export async function getBlockedUsers(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const blocked = await db.select({
+    id: blockedUsers.id,
+    blockedId: blockedUsers.blockedId,
+    reason: blockedUsers.reason,
+    createdAt: blockedUsers.createdAt,
+    username: userProfiles.username,
+    profilePictureUrl: userProfiles.profilePictureUrl,
+  })
+    .from(blockedUsers)
+    .leftJoin(userProfiles, eq(blockedUsers.blockedId, userProfiles.userId))
+    .where(eq(blockedUsers.blockerId, userId));
+
+  return blocked;
+}
+
+export async function getUsersWhoBlockedMe(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const blockers = await db.select()
+    .from(blockedUsers)
+    .where(eq(blockedUsers.blockedId, userId));
+
+  return blockers.map(b => b.blockerId);
+}
+
+// Check if two users have blocked each other
+export async function areUsersBlocked(userId1: number, userId2: number): Promise<boolean> {
+  const blocked1 = await isUserBlocked(userId1, userId2);
+  const blocked2 = await isUserBlocked(userId2, userId1);
+  
+  return blocked1 || blocked2;
+}
+
+// Export db instance for direct access
+export const db = {
+  get: getDb,
+};

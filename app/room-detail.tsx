@@ -9,6 +9,8 @@ import {
   Alert,
   ActivityIndicator,
   Image,
+  Pressable,
+  Modal,
 } from "react-native";
 import { useState, useEffect, useRef } from "react";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -20,6 +22,10 @@ import { useAuth } from "@/hooks/use-auth";
 import { useGroupWebSocket } from "@/hooks/use-group-websocket";
 import { MediaAttachmentMenu } from "@/components/media-attachment-menu";
 import { MediaMessageDisplay } from "@/components/media-message-display";
+import { TypingIndicator } from "@/components/typing-indicator";
+import { ReactionPicker } from "@/components/reaction-picker";
+import { Swipeable } from "react-native-gesture-handler";
+import { LinearGradient } from "expo-linear-gradient";
 import type { DocumentPickerAsset } from "expo-document-picker";
 
 interface Message {
@@ -68,6 +74,14 @@ export default function RoomDetailScreen() {
     data: any;
   } | null>(null);
   const [generatingSummary, setGeneratingSummary] = useState(false);
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [selectedMessageForReaction, setSelectedMessageForReaction] = useState<number | null>(null);
+  const [messageReactions, setMessageReactions] = useState<Record<number, string>>({});
+  const [replyToMessage, setReplyToMessage] = useState<any | null>(null);
+  const [isTyping, setIsTyping] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
+  const [showParticipantsModal, setShowParticipantsModal] = useState(false);
 
   // WebSocket connection
   const { connected, messages: wsMessages, sendMessage: wsSendMessage } = useGroupWebSocket(roomId);
@@ -110,6 +124,20 @@ export default function RoomDetailScreen() {
     }
   }, [messagesData]);
 
+  // Filter messages based on search query
+  const filteredMessages = messages.filter((message) => {
+    if (!searchQuery.trim()) return true;
+    
+    const query = searchQuery.toLowerCase();
+    const translatedText = message.translatedText?.toLowerCase() || "";
+    const originalText = message.originalText?.toLowerCase() || "";
+    const senderUsername = message.senderUsername?.toLowerCase() || "";
+    
+    return translatedText.includes(query) || 
+           originalText.includes(query) || 
+           senderUsername.includes(query);
+  });
+
   // Handle WebSocket messages
   useEffect(() => {
     if (wsMessages.length > 0) {
@@ -118,17 +146,48 @@ export default function RoomDetailScreen() {
     }
   }, [wsMessages]);
 
+  // Simulate typing indicator
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const shouldShow = Math.random() > 0.8;
+      setIsTyping(shouldShow);
+      
+      if (shouldShow) {
+        setTimeout(() => setIsTyping(false), 3000);
+      }
+    }, 10000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleLongPress = (messageId: number) => {
+    setSelectedMessageForReaction(messageId);
+    setShowReactionPicker(true);
+  };
+
+  const handleReactionSelect = (emoji: string) => {
+    if (selectedMessageForReaction) {
+      setMessageReactions((prev) => ({
+        ...prev,
+        [selectedMessageForReaction]: emoji,
+      }));
+      setSelectedMessageForReaction(null);
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!messageText.trim()) return;
 
     const tempMessage = messageText;
     setMessageText("");
+    setReplyToMessage(null); // Clear reply
     setSending(true);
 
     try {
       const result = await sendMessageMutation.mutateAsync({
         roomId,
         text: tempMessage,
+        replyToMessageId: replyToMessage?.id,
       });
 
       if (result.success) {
@@ -269,23 +328,7 @@ export default function RoomDetailScreen() {
   };
 
   const handleShowParticipants = () => {
-    if (!participants || participants.length === 0) {
-      Alert.alert("Katılımcılar", "Henüz katılımcı yok");
-      return;
-    }
-
-    const participantList = participants
-      .map((p: any) => `${p.username}${p.isModerator ? " (Moderatör)" : ""}`)
-      .join("\n");
-
-    Alert.alert(
-      `Katılımcılar (${participants.length})`,
-      participantList,
-      [
-        { text: "Odadan Ayrıl", style: "destructive", onPress: handleLeaveRoom },
-        { text: "Kapat", style: "cancel" },
-      ]
-    );
+    setShowParticipantsModal(true);
   };
 
   const handleGenerateSummary = async () => {
@@ -463,6 +506,25 @@ export default function RoomDetailScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
+            onPress={() => setShowSearch(!showSearch)}
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: showSearch ? colors.primary + "20" : colors.surface,
+              justifyContent: "center",
+              alignItems: "center",
+              marginLeft: 8,
+            }}
+          >
+            <Ionicons 
+              name={showSearch ? "close" : "search"} 
+              size={20} 
+              color={showSearch ? colors.primary : colors.foreground} 
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
             onPress={handleGenerateSummary}
             disabled={generatingSummary}
             style={{
@@ -483,22 +545,58 @@ export default function RoomDetailScreen() {
               <Ionicons name="sparkles" size={20} color="#1E3A8A" />
             )}
           </TouchableOpacity>
+        </View>
 
-          <TouchableOpacity
-            onPress={() => router.push(`/invite-to-room?roomId=${roomId}` as any)}
+        {/* Search Bar */}
+        {showSearch && (
+          <View
             style={{
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              backgroundColor: colors.primary + "20",
-              justifyContent: "center",
-              alignItems: "center",
-              marginLeft: 8,
+              padding: 12,
+              paddingTop: 8,
+              backgroundColor: colors.background,
+              borderBottomWidth: 1,
+              borderBottomColor: colors.border,
             }}
           >
-            <Ionicons name="person-add" size={20} color={colors.primary} />
-          </TouchableOpacity>
-        </View>
+            <View
+              style={{
+                backgroundColor: colors.surface,
+                borderRadius: 12,
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
+                borderWidth: 1,
+                borderColor: colors.border,
+              }}
+            >
+              <Ionicons name="search" size={20} color={colors.muted} />
+              <TextInput
+                placeholder="Mesaj veya kullanıcı ara..."
+                placeholderTextColor={colors.muted}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoFocus
+                style={{
+                  flex: 1,
+                  fontSize: 15,
+                  color: colors.foreground,
+                }}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery("")}>
+                  <Ionicons name="close-circle" size={20} color={colors.muted} />
+                </TouchableOpacity>
+              )}
+            </View>
+            {searchQuery && (
+              <Text style={{ fontSize: 12, color: colors.muted, marginTop: 8 }}>
+                {filteredMessages.length} sonuç bulundu
+              </Text>
+            )}
+          </View>
+        )}
 
         {/* Messages */}
         <ScrollView
@@ -533,21 +631,88 @@ export default function RoomDetailScreen() {
                 İlk mesajı göndererek konuşmaya başlayın
               </Text>
             </View>
+          ) : filteredMessages.length === 0 ? (
+            <View className="flex-1 items-center justify-center py-12">
+              <View
+                style={{
+                  width: 80,
+                  height: 80,
+                  borderRadius: 40,
+                  backgroundColor: colors.muted + "15",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  marginBottom: 16,
+                }}
+              >
+                <Ionicons name="search-outline" size={40} color={colors.muted} />
+              </View>
+              <Text className="text-base font-semibold text-foreground mb-2">
+                Sonuç Bulunamadı
+              </Text>
+              <Text className="text-sm text-muted text-center">
+                "{searchQuery}" için mesaj bulunamadı
+              </Text>
+            </View>
           ) : (
             <View className="gap-3">
-              {messages.map((message) => {
-                const isMyMessage = message.senderId === user?.id;
+              {filteredMessages.map((message, index) => {
+                // Robust comparison: ensure both values are numbers and handle edge cases
+                const messageSenderId = message.senderId ? Number(message.senderId) : null;
+                const currentUserId = user?.id ? Number(user.id) : null;
+                const isMyMessage = messageSenderId !== null && 
+                                   currentUserId !== null && 
+                                   messageSenderId === currentUserId;
+                
                 const showTranslation =
                   message.originalLanguage !== message.targetLanguage;
 
-                return (
+                const renderRightActions = () => (
                   <View
-                    key={message.id}
                     style={{
-                      alignSelf: isMyMessage ? "flex-end" : "flex-start",
-                      maxWidth: "80%",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      width: 60,
+                      marginRight: 8,
                     }}
                   >
+                    <Ionicons name="arrow-undo" size={24} color={colors.primary} />
+                  </View>
+                );
+
+                const renderLeftActions = () => (
+                  <View
+                    style={{
+                      justifyContent: "center",
+                      alignItems: "center",
+                      width: 60,
+                      marginLeft: 8,
+                    }}
+                  >
+                    <Ionicons name="arrow-undo" size={24} color={colors.primary} />
+                  </View>
+                );
+
+                return (
+                  <Swipeable
+                    key={message.id}
+                    renderRightActions={isMyMessage ? undefined : renderRightActions}
+                    renderLeftActions={isMyMessage ? renderLeftActions : undefined}
+                    onSwipeableOpen={() => {
+                      setReplyToMessage(message);
+                    }}
+                    overshootRight={false}
+                    overshootLeft={false}
+                  >
+                  <View
+                    style={{
+                      alignSelf: isMyMessage ? "flex-end" : "flex-start",
+                      maxWidth: "95%",
+                      marginBottom: messageReactions[message.id] ? 28 : 12,
+                      marginLeft: isMyMessage ? 60 : 0,
+                      marginRight: isMyMessage ? 0 : 60,
+                    }}
+                  >
+                    <View style={{ position: "relative", paddingBottom: messageReactions[message.id] ? 16 : 0 }}>
                     {!isMyMessage && (
                       <Text
                         className="text-xs font-semibold mb-1"
@@ -556,14 +721,27 @@ export default function RoomDetailScreen() {
                         {message.senderUsername || `User ${message.senderId}`}
                       </Text>
                     )}
-                    <View
+                    <Pressable
+                      onLongPress={() => handleLongPress(message.id)}
+                      delayLongPress={500}
                       style={{
-                        backgroundColor: isMyMessage
-                          ? colors.primary
-                          : colors.surface,
+                        borderRadius: 16,
+                        overflow: "hidden",
+                        shadowColor: "#000",
+                        shadowOffset: { width: 0, height: 1 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 2,
+                        elevation: 2,
+                      }}
+                    >
+                    <LinearGradient
+                      colors={[colors.surface, colors.surface]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={{
                         borderRadius: 16,
                         padding: 12,
-                        borderWidth: isMyMessage ? 0 : 1,
+                        borderWidth: 1,
                         borderColor: colors.border,
                       }}
                     >
@@ -667,7 +845,7 @@ export default function RoomDetailScreen() {
                                   <Ionicons 
                                     name="arrow-down-circle" 
                                     size={20} 
-                                    color={isMyMessage ? "rgba(255, 255, 255, 0.7)" : colors.primary}
+                                    color={colors.primary}
                                   />
                                 </TouchableOpacity>
                               )}
@@ -675,7 +853,7 @@ export default function RoomDetailScreen() {
                             <Text
                               style={{
                                 fontSize: 10,
-                                color: isMyMessage ? "#ffffff" : colors.muted,
+                                color: colors.muted,
                                 opacity: 0.6,
                               }}
                             >
@@ -693,7 +871,7 @@ export default function RoomDetailScreen() {
                         <Text
                           style={{
                             fontSize: 15,
-                            color: isMyMessage ? "#ffffff" : colors.foreground,
+                            color: colors.foreground,
                           }}
                         >
                           {message.translatedText}
@@ -701,7 +879,7 @@ export default function RoomDetailScreen() {
                           <Text
                             style={{
                               fontSize: 10,
-                              color: isMyMessage ? "#ffffff" : colors.muted,
+                              color: colors.muted,
                               opacity: 0.6,
                             }}
                           >
@@ -719,21 +897,19 @@ export default function RoomDetailScreen() {
                             marginTop: 8,
                             paddingTop: 8,
                             borderTopWidth: 1,
-                            borderTopColor: isMyMessage
-                              ? "rgba(255,255,255,0.2)"
-                              : colors.border,
+                            borderTopColor: colors.border,
                           }}
                         >
                           <View className="flex-row items-center gap-1 mb-1">
                             <Ionicons
                               name="language"
                               size={12}
-                              color={isMyMessage ? "#ffffff" : colors.muted}
+                              color={colors.muted}
                             />
                             <Text
                               style={{
                                 fontSize: 10,
-                                color: isMyMessage ? "#ffffff" : colors.muted,
+                                color: colors.muted,
                                 opacity: 0.7,
                               }}
                             >
@@ -743,7 +919,7 @@ export default function RoomDetailScreen() {
                           <Text
                             style={{
                               fontSize: 13,
-                              color: isMyMessage ? "#ffffff" : colors.muted,
+                              color: colors.muted,
                               opacity: 0.8,
                               fontStyle: "italic",
                             }}
@@ -753,7 +929,7 @@ export default function RoomDetailScreen() {
                             <Text
                               style={{
                                 fontSize: 10,
-                                color: isMyMessage ? "#ffffff" : colors.muted,
+                                color: colors.muted,
                                 opacity: 0.6,
                               }}
                             >
@@ -765,12 +941,43 @@ export default function RoomDetailScreen() {
                           </Text>
                         </View>
                       )}
+                    </LinearGradient>
+                    </Pressable>
+                    
+                    {/* Reaction Badge */}
+                    {messageReactions[message.id] && (
+                      <View
+                        style={{
+                          position: "absolute",
+                          bottom: -4,
+                          right: isMyMessage ? 8 : undefined,
+                          left: isMyMessage ? undefined : 8,
+                          backgroundColor: colors.background,
+                          borderRadius: 12,
+                          paddingHorizontal: 8,
+                          paddingVertical: 4,
+                          borderWidth: 2,
+                          borderColor: colors.border,
+                          shadowColor: "#000",
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.1,
+                          shadowRadius: 4,
+                          elevation: 4,
+                        }}
+                      >
+                        <Text style={{ fontSize: 16 }}>{messageReactions[message.id]}</Text>
+                      </View>
+                    )}
                     </View>
                   </View>
+                  </Swipeable>
                 );
               })}
             </View>
           )}
+
+          {/* Typing Indicator */}
+          {isTyping && <TypingIndicator />}
 
           {/* Selected Media Preview - Compact */}
           {selectedMedia && (
@@ -867,6 +1074,39 @@ export default function RoomDetailScreen() {
           )}
         </ScrollView>
 
+        {/* Reply Preview */}
+        {replyToMessage && (
+          <View
+            style={{
+              marginHorizontal: 12,
+              marginBottom: 8,
+              backgroundColor: colors.surface,
+              borderLeftWidth: 4,
+              borderLeftColor: colors.primary,
+              borderRadius: 8,
+              padding: 12,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 12, color: colors.primary, fontWeight: "600", marginBottom: 4 }}>
+                {Number(replyToMessage.senderId) === Number(user?.id) ? "Kendinize" : replyToMessage.senderUsername || `User ${replyToMessage.senderId}`}
+              </Text>
+              <Text
+                style={{ fontSize: 14, color: colors.foreground }}
+                numberOfLines={2}
+              >
+                {replyToMessage.translatedText || replyToMessage.originalText || "Medya"}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={() => setReplyToMessage(null)}>
+              <Ionicons name="close-circle" size={24} color={colors.muted} />
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Input */}
         <View
           style={{
@@ -952,6 +1192,288 @@ export default function RoomDetailScreen() {
           onDocumentSelected={handleDocumentSelected}
           onLocationSelected={handleLocationSelected}
           onContactSelected={handleContactSelected}
+        />
+
+        {/* Participants Modal */}
+        <Modal
+          visible={showParticipantsModal}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowParticipantsModal(false)}
+        >
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              justifyContent: "flex-end",
+            }}
+          >
+            <Pressable
+              style={{ flex: 1 }}
+              onPress={() => setShowParticipantsModal(false)}
+            />
+            <View
+              style={{
+                backgroundColor: colors.background,
+                borderTopLeftRadius: 24,
+                borderTopRightRadius: 24,
+                maxHeight: "80%",
+                paddingBottom: Platform.OS === "ios" ? 34 : 16,
+              }}
+            >
+              {/* Modal Header */}
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: 20,
+                  paddingBottom: 16,
+                  borderBottomWidth: 1,
+                  borderBottomColor: colors.border,
+                }}
+              >
+                <View>
+                  <Text style={{ fontSize: 20, fontWeight: "bold", color: colors.foreground }}>
+                    Katılımcılar
+                  </Text>
+                  <Text style={{ fontSize: 14, color: colors.muted, marginTop: 2 }}>
+                    {participants?.length || 0} kişi
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setShowParticipantsModal(false)}
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 18,
+                    backgroundColor: colors.surface,
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                >
+                  <Ionicons name="close" size={24} color={colors.foreground} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Participants List */}
+              <ScrollView
+                style={{ maxHeight: 400 }}
+                contentContainerStyle={{ padding: 16, paddingBottom: 8 }}
+              >
+                {!participants || participants.length === 0 ? (
+                  <View style={{ alignItems: "center", paddingVertical: 32 }}>
+                    <View
+                      style={{
+                        width: 64,
+                        height: 64,
+                        borderRadius: 32,
+                        backgroundColor: colors.muted + "15",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        marginBottom: 12,
+                      }}
+                    >
+                      <Ionicons name="people-outline" size={32} color={colors.muted} />
+                    </View>
+                    <Text style={{ fontSize: 14, color: colors.muted }}>
+                      Henüz katılımcı yok
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={{ gap: 8 }}>
+                    {participants.map((participant: any) => (
+                      <View
+                        key={participant.userId}
+                        style={{
+                          backgroundColor: colors.surface,
+                          borderRadius: 12,
+                          padding: 12,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 12,
+                          borderWidth: 1,
+                          borderColor: colors.border,
+                        }}
+                      >
+                        {/* Profile Picture */}
+                        <View
+                          style={{
+                            width: 44,
+                            height: 44,
+                            borderRadius: 22,
+                            backgroundColor: colors.primary + "20",
+                            justifyContent: "center",
+                            alignItems: "center",
+                          }}
+                        >
+                          {participant.profilePicture ? (
+                            <Image
+                              source={{ uri: participant.profilePicture }}
+                              style={{ width: 44, height: 44, borderRadius: 22 }}
+                            />
+                          ) : (
+                            <Text
+                              style={{
+                                fontSize: 18,
+                                fontWeight: "bold",
+                                color: colors.primary,
+                              }}
+                            >
+                              {participant.username?.charAt(0).toUpperCase() || "?"}
+                            </Text>
+                          )}
+                        </View>
+
+                        {/* User Info */}
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                            <Text
+                              style={{
+                                fontSize: 15,
+                                fontWeight: "600",
+                                color: colors.foreground,
+                              }}
+                              numberOfLines={1}
+                            >
+                              {participant.username}
+                            </Text>
+                            {participant.isModerator && (
+                              <View
+                                style={{
+                                  backgroundColor: colors.primary + "20",
+                                  paddingHorizontal: 6,
+                                  paddingVertical: 2,
+                                  borderRadius: 4,
+                                }}
+                              >
+                                <Text
+                                  style={{
+                                    fontSize: 10,
+                                    fontWeight: "700",
+                                    color: colors.primary,
+                                  }}
+                                >
+                                  MOD
+                                </Text>
+                              </View>
+                            )}
+                            {Number(participant.userId) === Number(user?.id) && (
+                              <View
+                                style={{
+                                  backgroundColor: colors.muted + "20",
+                                  paddingHorizontal: 6,
+                                  paddingVertical: 2,
+                                  borderRadius: 4,
+                                }}
+                              >
+                                <Text
+                                  style={{
+                                    fontSize: 10,
+                                    fontWeight: "700",
+                                    color: colors.muted,
+                                  }}
+                                >
+                                  SİZ
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+                          <Text
+                            style={{
+                              fontSize: 12,
+                              color: colors.muted,
+                              marginTop: 2,
+                            }}
+                          >
+                            {participant.preferredLanguage?.toUpperCase() || "TR"}
+                          </Text>
+                        </View>
+
+                        {/* Online Status */}
+                        <View
+                          style={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: 5,
+                            backgroundColor: "#22c55e",
+                          }}
+                        />
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </ScrollView>
+
+              {/* Action Buttons */}
+              <View style={{ padding: 16, paddingTop: 12, gap: 10 }}>
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowParticipantsModal(false);
+                    router.push(`/invite-to-room?roomId=${roomId}` as any);
+                  }}
+                  style={{
+                    backgroundColor: colors.primary,
+                    borderRadius: 12,
+                    padding: 16,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                  }}
+                >
+                  <Ionicons name="person-add" size={20} color="#ffffff" />
+                  <Text style={{ fontSize: 16, fontWeight: "600", color: "#ffffff" }}>
+                    Kişi Ekle
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowParticipantsModal(false);
+                    Alert.alert(
+                      "Odadan Ayrıl",
+                      "Bu odadan ayrılmak istediğinize emin misiniz?",
+                      [
+                        { text: "İptal", style: "cancel" },
+                        {
+                          text: "Ayrıl",
+                          style: "destructive",
+                          onPress: handleLeaveRoom,
+                        },
+                      ]
+                    );
+                  }}
+                  style={{
+                    backgroundColor: colors.surface,
+                    borderRadius: 12,
+                    padding: 16,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    borderWidth: 1,
+                    borderColor: "#ef4444",
+                  }}
+                >
+                  <Ionicons name="exit-outline" size={20} color="#ef4444" />
+                  <Text style={{ fontSize: 16, fontWeight: "600", color: "#ef4444" }}>
+                    Odadan Çık
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Reaction Picker */}
+        <ReactionPicker
+          visible={showReactionPicker}
+          onClose={() => {
+            setShowReactionPicker(false);
+            setSelectedMessageForReaction(null);
+          }}
+          onReactionSelect={handleReactionSelect}
         />
       </KeyboardAvoidingView>
     </ScreenContainer>

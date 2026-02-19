@@ -172,6 +172,7 @@ export const groupRouter = router({
       z.object({
         roomId: z.number(),
         text: z.string().min(1),
+        replyToMessageId: z.number().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -200,6 +201,31 @@ export const groupRouter = router({
         originalLanguage: senderLanguage,
         autoDeleteAt,
       });
+
+      // Send push notifications to other participants
+      try {
+        const { sendPushNotificationToUsers } = await import("./push-notification-service");
+        const participants = await db.getGroupParticipants(input.roomId);
+        const otherParticipantIds = participants
+          .filter((p) => p.userId !== ctx.user.id && !p.leftAt)
+          .map((p) => p.userId);
+
+        if (otherParticipantIds.length > 0) {
+          await sendPushNotificationToUsers(
+            otherParticipantIds,
+            room.name,
+            `${senderProfile?.username || "Someone"}: ${input.text.substring(0, 100)}`,
+            {
+              type: "group_message",
+              roomId: input.roomId,
+              messageId: message.id,
+            }
+          );
+        }
+      } catch (error) {
+        console.error("Failed to send push notifications:", error);
+        // Don't fail the message send if push notification fails
+      }
 
       return {
         success: true,

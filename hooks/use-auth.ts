@@ -59,14 +59,52 @@ export function useAuth(options?: UseAuthOptions) {
         return;
       }
 
-      // Use cached user info for native (token validates the session)
-      const cachedUser = await Auth.getUserInfo();
-      console.log("[useAuth] Cached user:", cachedUser);
-      if (cachedUser) {
-        console.log("[useAuth] Using cached user info");
-        setUser(cachedUser);
-      } else {
-        console.log("[useAuth] No cached user, setting user to null");
+      // Decode JWT to get user info
+      try {
+        const base64Url = sessionToken.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(
+          atob(base64)
+            .split('')
+            .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+            .join('')
+        );
+        const payload = JSON.parse(jsonPayload);
+        console.log("[useAuth] JWT payload:", payload);
+        
+        // Extract user info from JWT
+        const userId = payload.userId || payload.sub || payload.id;
+        
+        if (!userId) {
+          console.log("[useAuth] No user ID in JWT, setting user to null");
+          setUser(null);
+          return;
+        }
+        
+        // Check cache first for complete user info
+        const cachedUser = await Auth.getUserInfo();
+        
+        if (cachedUser && cachedUser.id === Number(userId)) {
+          // Use cached user if ID matches
+          console.log("[useAuth] Using cached user:", cachedUser);
+          setUser(cachedUser);
+        } else {
+          // Create user from JWT
+          const userFromJWT: Auth.User = {
+            id: Number(userId),
+            openId: payload.openId || '',
+            name: payload.name || null,
+            email: payload.email || null,
+            loginMethod: 'phone',
+            lastSignedIn: new Date(),
+          };
+          console.log("[useAuth] Created user from JWT:", userFromJWT);
+          setUser(userFromJWT);
+          // Update cache
+          await Auth.setUserInfo(userFromJWT);
+        }
+      } catch (jwtError) {
+        console.error("[useAuth] Failed to decode JWT:", jwtError);
         setUser(null);
       }
     } catch (err) {

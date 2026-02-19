@@ -213,6 +213,27 @@ export const meetingSummaries = pgTable("meetingSummaries", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
+// Push Tokens table - stores Expo push notification tokens
+export const pushTokens = pgTable("pushTokens", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  userId: integer("userId").notNull(),
+  token: varchar("token", { length: 255 }).notNull().unique(),
+  deviceId: varchar("deviceId", { length: 255 }),
+  platform: varchar("platform", { length: 20 }).notNull(), // 'ios', 'android', 'web'
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+
+// Blocked Users table - stores user blocking relationships
+export const blockedUsers = pgTable("blockedUsers", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  blockerId: integer("blockerId").notNull(), // User who blocked
+  blockedId: integer("blockedId").notNull(), // User who was blocked
+  reason: text("reason"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
 // Export types
 export type UserProfile = typeof userProfiles.$inferSelect;
 export type InsertUserProfile = typeof userProfiles.$inferInsert;
@@ -240,3 +261,7 @@ export type GroupMediaMessage = typeof groupMediaMessages.$inferSelect;
 export type InsertGroupMediaMessage = typeof groupMediaMessages.$inferInsert;
 export type MeetingSummary = typeof meetingSummaries.$inferSelect;
 export type InsertMeetingSummary = typeof meetingSummaries.$inferInsert;
+export type PushToken = typeof pushTokens.$inferSelect;
+export type InsertPushToken = typeof pushTokens.$inferInsert;
+export type BlockedUser = typeof blockedUsers.$inferSelect;
+export type InsertBlockedUser = typeof blockedUsers.$inferInsert;

@@ -25,6 +25,10 @@ import { MessageDeleteDialog } from "@/components/message-delete-dialog";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { MediaAttachmentMenu } from "@/components/media-attachment-menu";
 import { MediaMessageDisplay } from "@/components/media-message-display";
+import { TypingIndicator } from "@/components/typing-indicator";
+import { ReactionPicker } from "@/components/reaction-picker";
+import { Swipeable } from "react-native-gesture-handler";
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import type { DocumentPickerAsset } from "expo-document-picker";
 
 export default function ChatDetailScreen() {
@@ -34,6 +38,12 @@ export default function ChatDetailScreen() {
   const { conversationId } = useLocalSearchParams<{ conversationId: string }>();
   const [messageText, setMessageText] = useState("");
   const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [selectedMessageForReaction, setSelectedMessageForReaction] = useState<number | null>(null);
+  const [messageReactions, setMessageReactions] = useState<Record<number, string>>({});
+  const [replyToMessage, setReplyToMessage] = useState<any | null>(null);
   const { sendLocalNotification } = useNotifications();
   const { deleteMessage, loading: deleteLoading } = useMessageDelete();
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
@@ -44,6 +54,9 @@ export default function ChatDetailScreen() {
     data: any;
   } | null>(null);
   const flatListRef = useRef<FlatList>(null);
+
+  // Block user mutation
+  const blockUserMutation = trpc.blocking.blockUser.useMutation();
 
   const conversationId_num = conversationId ? parseInt(conversationId, 10) : 0;
 
@@ -112,10 +125,18 @@ export default function ChatDetailScreen() {
   });
 
   const handleLongPress = (messageId: number, senderId: number) => {
-    // Sadece kendi mesajlarını silebilir
-    if (senderId === user?.id) {
-      setSelectedMessageId(messageId);
-      setDeleteDialogVisible(true);
+    // Show reaction picker for all messages
+    setSelectedMessageForReaction(messageId);
+    setShowReactionPicker(true);
+  };
+
+  const handleReactionSelect = (emoji: string) => {
+    if (selectedMessageForReaction) {
+      setMessageReactions((prev) => ({
+        ...prev,
+        [selectedMessageForReaction]: emoji,
+      }));
+      setSelectedMessageForReaction(null);
     }
   };
 
@@ -212,13 +233,19 @@ export default function ChatDetailScreen() {
     }
   };
 
-  // Simulate receiving message notification
+  // Simulate typing indicator
   useEffect(() => {
-    const timer = setInterval(() => {
-      // This would normally come from WebSocket
-      // For now, just a placeholder
-    }, 5000);
-    return () => clearInterval(timer);
+    // Randomly show typing indicator for demo
+    const interval = setInterval(() => {
+      const shouldShow = Math.random() > 0.7;
+      setIsTyping(shouldShow);
+      
+      if (shouldShow) {
+        setTimeout(() => setIsTyping(false), 3000);
+      }
+    }, 10000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const handleSendMessage = async () => {
@@ -241,12 +268,15 @@ export default function ChatDetailScreen() {
         conversationId: conversationId_num,
         text: messageText.trim(),
         recipientLanguage,
+        replyToMessageId: replyToMessage?.id,
       });
       // Send notification to recipient
       sendLocalNotification(
         "New Message",
         `${user.email}: ${messageText.trim().substring(0, 50)}...`
       );
+      // Clear reply
+      setReplyToMessage(null);
     } finally {
       setLoading(false);
     }
@@ -333,45 +363,192 @@ export default function ChatDetailScreen() {
         <FlatList
           data={messages}
           keyExtractor={(item) => item.id.toString()}
+          ListFooterComponent={isTyping ? <TypingIndicator /> : null}
           renderItem={({ item }) => {
-            const isSender = item.senderId === user?.id;
+            // Robust comparison: ensure both values are numbers and handle edge cases
+            const messageSenderId = item.senderId ? Number(item.senderId) : null;
+            const currentUserId = user?.id ? Number(user.id) : null;
+            const isSender = messageSenderId !== null && 
+                           currentUserId !== null && 
+                           messageSenderId === currentUserId;
+            
             const messageReadReceipts = readReceiptsQuery.data?.filter(
               (r) => r.messageId === item.id
             ) || [];
             const isRead = messageReadReceipts.length > 0;
 
+            // Get other user ID for blocking
+            const otherUserId = isSender 
+              ? (conversationQuery.data?.participant1Id === user?.id 
+                  ? conversationQuery.data?.participant2Id 
+                  : conversationQuery.data?.participant1Id)
+              : item.senderId;
+
+            const renderRightActions = () => (
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginRight: 8,
+                }}
+              >
+                {/* Reply Button */}
+                <TouchableOpacity
+                  onPress={() => {
+                    setReplyToMessage(item);
+                  }}
+                  style={{
+                    width: 70,
+                    height: "100%",
+                    backgroundColor: colors.primary,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    marginRight: 4,
+                  }}
+                >
+                  <Ionicons name="arrow-undo" size={24} color="#ffffff" />
+                  <Text style={{ color: "#ffffff", fontSize: 10, marginTop: 2 }}>
+                    Yanıtla
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Block Button (only for received messages) */}
+                {!isSender && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      Alert.alert(
+                        "Kullanıcıyı Engelle",
+                        "Bu kullanıcıyı engellemek istediğinize emin misiniz? Artık bu kullanıcıdan mesaj alamayacaksınız.",
+                        [
+                          { text: "İptal", style: "cancel" },
+                          {
+                            text: "Engelle",
+                            style: "destructive",
+                            onPress: async () => {
+                              try {
+                                await blockUserMutation.mutateAsync({
+                                  userId: otherUserId!,
+                                  reason: "Kullanıcı tarafından engellendi",
+                                });
+                                Alert.alert("Başarılı", "Kullanıcı engellendi");
+                                router.back();
+                              } catch (error) {
+                                Alert.alert("Hata", "Kullanıcı engellenemedi");
+                              }
+                            },
+                          },
+                        ]
+                      );
+                    }}
+                    style={{
+                      width: 70,
+                      height: "100%",
+                      backgroundColor: "#ef4444",
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Ionicons name="ban" size={24} color="#ffffff" />
+                    <Text style={{ color: "#ffffff", fontSize: 10, marginTop: 2 }}>
+                      Engelle
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            );
+
+            const renderLeftActions = () => (
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginLeft: 8,
+                }}
+              >
+                {/* Reply Button */}
+                <TouchableOpacity
+                  onPress={() => {
+                    setReplyToMessage(item);
+                  }}
+                  style={{
+                    width: 70,
+                    height: "100%",
+                    backgroundColor: colors.primary,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    marginRight: 4,
+                  }}
+                >
+                  <Ionicons name="arrow-undo" size={24} color="#ffffff" />
+                  <Text style={{ color: "#ffffff", fontSize: 10, marginTop: 2 }}>
+                    Yanıtla
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Delete Button (only for sent messages) */}
+                {isSender && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSelectedMessageId(item.id);
+                      setDeleteDialogVisible(true);
+                    }}
+                    style={{
+                      width: 70,
+                      height: "100%",
+                      backgroundColor: "#ef4444",
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Ionicons name="trash" size={24} color="#ffffff" />
+                    <Text style={{ color: "#ffffff", fontSize: 10, marginTop: 2 }}>
+                      Sil
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            );
+
             return (
+              <Swipeable
+                renderRightActions={isSender ? undefined : renderRightActions}
+                renderLeftActions={isSender ? renderLeftActions : undefined}
+                overshootRight={false}
+                overshootLeft={false}
+              >
               <View
                 className={`mb-3 flex-row ${
                   isSender ? "justify-end" : "justify-start"
                 }`}
+                style={{ 
+                  marginBottom: messageReactions[item.id] ? 28 : 12,
+                  marginLeft: isSender ? 60 : 0,
+                  marginRight: isSender ? 0 : 60,
+                }}
               >
-                <Pressable
-                  onLongPress={() => handleLongPress(item.id, item.senderId)}
-                  delayLongPress={500}
-                  style={{
-                    maxWidth: "75%",
-                    borderRadius: 16,
-                    overflow: "hidden",
-                    shadowColor: "#000",
-                    shadowOffset: { width: 0, height: 1 },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 2,
-                    elevation: 2,
-                  }}
-                >
+                <View style={{ position: "relative", paddingBottom: messageReactions[item.id] ? 16 : 0 }}>
+                  <Pressable
+                    onLongPress={() => handleLongPress(item.id, item.senderId)}
+                    delayLongPress={500}
+                    style={{
+                      maxWidth: "95%",
+                      borderRadius: 16,
+                      overflow: "hidden",
+                      shadowColor: "#000",
+                      shadowOffset: { width: 0, height: 1 },
+                      shadowOpacity: 0.1,
+                      shadowRadius: 2,
+                      elevation: 2,
+                    }}
+                  >
                   <LinearGradient
-                    colors={
-                      isSender
-                        ? [colors.primary, colors.primary + "E0"]
-                        : [colors.surface, colors.surface]
-                    }
+                    colors={[colors.surface, colors.surface]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={{
                       padding: 12,
                       borderRadius: 16,
-                      borderWidth: isSender ? 0 : 1,
+                      borderWidth: 1,
                       borderColor: colors.border,
                     }}
                   >
@@ -481,11 +658,7 @@ export default function ChatDetailScreen() {
                         </View>
                         <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
                           <Text
-                            className={`text-xs ${
-                              isSender
-                                ? "text-background opacity-70"
-                                : "text-muted"
-                            }`}
+                            className="text-xs text-muted"
                           >
                             {new Date(item.createdAt).toLocaleTimeString([], { 
                               hour: '2-digit', 
@@ -493,7 +666,7 @@ export default function ChatDetailScreen() {
                             })}
                           </Text>
                           {isSender && (
-                            <Text className={`text-xs ${isRead ? "text-green-400" : "text-background opacity-70"}`}>
+                            <Text className={`text-xs ${isRead ? "text-green-400" : "text-muted"}`}>
                               {isRead ? "✓✓" : "✓"}
                             </Text>
                           )}
@@ -505,11 +678,55 @@ export default function ChatDetailScreen() {
                   {/* Text Message */}
                   {!(item as any).media && (
                     <View>
+                      {/* Reply Preview */}
+                      {(item as any).replyTo && (
+                        <View
+                          style={{
+                            marginBottom: 8,
+                            paddingBottom: 8,
+                            borderBottomWidth: 1,
+                            borderBottomColor: colors.border + "60",
+                          }}
+                        >
+                          <View
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              gap: 4,
+                              marginBottom: 4,
+                            }}
+                          >
+                            <Ionicons 
+                              name="arrow-undo" 
+                              size={12} 
+                              color={colors.primary}
+                            />
+                            <Text
+                              style={{
+                                fontSize: 11,
+                                color: colors.primary,
+                                fontWeight: "600",
+                              }}
+                            >
+                              {(item as any).replyTo.senderId === user?.id ? "Siz" : `User ${(item as any).replyTo.senderId}`}
+                            </Text>
+                          </View>
+                          <Text
+                            style={{
+                              fontSize: 13,
+                              color: colors.muted,
+                              fontStyle: "italic",
+                            }}
+                            numberOfLines={2}
+                          >
+                            {(item as any).replyTo.originalText || "Medya"}
+                          </Text>
+                        </View>
+                      )}
+                      
                       {/* Original Text */}
                       <Text
-                        className={`text-base ${
-                          isSender ? "text-background" : "text-foreground"
-                        }`}
+                        className="text-base text-foreground"
                         style={{ paddingRight: 60, lineHeight: 20 }}
                       >
                         {item.originalText}
@@ -519,36 +736,14 @@ export default function ChatDetailScreen() {
                       {item.isTranslated && item.translatedText && (
                         <View
                           style={{
-                            marginTop: 8,
-                            paddingTop: 8,
+                            marginTop: 6,
+                            paddingTop: 6,
                             borderTopWidth: 1,
-                            borderTopColor: isSender 
-                              ? "rgba(255, 255, 255, 0.2)" 
-                              : colors.border + "60",
+                            borderTopColor: colors.border + "60",
                           }}
                         >
-                          <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 4 }}>
-                            <Ionicons 
-                              name="language" 
-                              size={12} 
-                              color={isSender ? "rgba(255, 255, 255, 0.6)" : colors.muted} 
-                            />
-                            <Text
-                              style={{
-                                fontSize: 10,
-                                color: isSender ? "rgba(255, 255, 255, 0.6)" : colors.muted,
-                                fontWeight: "600",
-                              }}
-                            >
-                              Çeviri
-                            </Text>
-                          </View>
                           <Text
-                            className={`text-sm ${
-                              isSender
-                                ? "text-background opacity-90"
-                                : "text-foreground opacity-80"
-                            }`}
+                            className="text-sm text-foreground opacity-80"
                             style={{ paddingRight: 60, lineHeight: 18, fontStyle: "italic" }}
                           >
                             {item.translatedText}
@@ -568,11 +763,7 @@ export default function ChatDetailScreen() {
                         }}
                       >
                         <Text
-                          className={`text-xs ${
-                            isSender
-                              ? "text-background opacity-70"
-                              : "text-muted"
-                          }`}
+                          className="text-xs text-muted"
                         >
                           {new Date(item.createdAt).toLocaleTimeString([], { 
                             hour: '2-digit', 
@@ -580,7 +771,7 @@ export default function ChatDetailScreen() {
                           })}
                         </Text>
                         {isSender && (
-                          <Text className={`text-xs ${isRead ? "text-green-400" : "text-background opacity-70"}`}>
+                          <Text className={`text-xs ${isRead ? "text-green-400" : "text-muted"}`}>
                             {isRead ? "✓✓" : "✓"}
                           </Text>
                         )}
@@ -589,7 +780,34 @@ export default function ChatDetailScreen() {
                   )}
                 </LinearGradient>
               </Pressable>
+              
+              {/* Reaction Badge */}
+              {messageReactions[item.id] && (
+                <View
+                  style={{
+                    position: "absolute",
+                    bottom: -4,
+                    right: isSender ? 8 : undefined,
+                    left: isSender ? undefined : 8,
+                    backgroundColor: colors.background,
+                    borderRadius: 12,
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderWidth: 2,
+                    borderColor: colors.border,
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 4,
+                    elevation: 4,
+                  }}
+                >
+                  <Text style={{ fontSize: 16 }}>{messageReactions[item.id]}</Text>
+                </View>
+              )}
             </View>
+          </View>
+          </Swipeable>
             );
           }}
           inverted
@@ -689,6 +907,39 @@ export default function ChatDetailScreen() {
           </View>
         )}
 
+        {/* Reply Preview */}
+        {replyToMessage && (
+          <View
+            style={{
+              marginHorizontal: 16,
+              marginBottom: 8,
+              backgroundColor: colors.surface,
+              borderLeftWidth: 4,
+              borderLeftColor: colors.primary,
+              borderRadius: 8,
+              padding: 12,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 12, color: colors.primary, fontWeight: "600", marginBottom: 4 }}>
+                {replyToMessage.senderId === user?.id ? "Kendinize" : `User ${replyToMessage.senderId}`}
+              </Text>
+              <Text
+                style={{ fontSize: 14, color: colors.foreground }}
+                numberOfLines={2}
+              >
+                {replyToMessage.originalText || "Medya"}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={() => setReplyToMessage(null)}>
+              <Ionicons name="close-circle" size={24} color={colors.muted} />
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Message Input */}
         <View className="flex-row gap-2 items-end">
           <TouchableOpacity
@@ -737,6 +988,16 @@ export default function ChatDetailScreen() {
           onDocumentSelected={handleDocumentSelected}
           onLocationSelected={handleLocationSelected}
           onContactSelected={handleContactSelected}
+        />
+
+        {/* Reaction Picker */}
+        <ReactionPicker
+          visible={showReactionPicker}
+          onClose={() => {
+            setShowReactionPicker(false);
+            setSelectedMessageForReaction(null);
+          }}
+          onReactionSelect={handleReactionSelect}
         />
 
         {/* Delete Dialog */}
