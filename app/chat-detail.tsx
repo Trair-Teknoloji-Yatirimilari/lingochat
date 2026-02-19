@@ -81,6 +81,11 @@ export default function ChatDetailScreen() {
 
   // Mark messages as read when viewing
   useEffect(() => {
+    const allMessages = messagesQuery.data || [];
+    const messages = allMessages.filter(
+      (msg) => !(msg.deletedBy === user?.id && msg.deletedAt)
+    );
+    
     if (messages.length > 0 && user?.id) {
       messages.forEach((msg) => {
         if (msg.senderId !== user.id) {
@@ -91,7 +96,7 @@ export default function ChatDetailScreen() {
         }
       });
     }
-  }, [messages.length, user?.id, conversationId_num]);
+  }, [messagesQuery.data, user?.id, conversationId_num]);
 
   const sendMessageMutation = trpc.messages.send.useMutation({
     onSuccess: () => {
@@ -464,44 +469,27 @@ export default function ChatDetailScreen() {
 
                   {/* Text Message */}
                   {!(item as any).media && (
-                    <Text
-                      className={`text-base ${
-                        isSender ? "text-background" : "text-foreground"
-                      }`}
-                    >
-                      {item.originalText}
-                      {"  "}
+                    <View>
                       <Text
-                        className={`text-xs ${
-                          isSender
-                            ? "text-background opacity-70"
-                            : "text-muted"
+                        className={`text-base ${
+                          isSender ? "text-background" : "text-foreground"
                         }`}
+                        style={{ paddingRight: 60 }}
                       >
-                        {new Date(item.createdAt).toLocaleTimeString([], { 
-                          hour: '2-digit', 
-                          minute: '2-digit' 
-                        })}
+                        {item.originalText}
                       </Text>
-                      {isSender && (
-                        <Text className={`text-xs ${isRead ? "text-green-400" : "text-background opacity-70"}`}>
-                          {" "}{isRead ? "✓✓" : "✓"}
-                        </Text>
-                      )}
-                    </Text>
-                  )}
-                  
-                  {!(item as any).media && item.isTranslated && item.translatedText && (
-                    <View className="mt-2 pt-2 border-t border-opacity-30 border-current">
-                      <Text
-                        className={`text-sm italic ${
-                          isSender
-                            ? "text-background opacity-80"
-                            : "text-muted"
-                        }`}
+                      
+                      {/* Time and Read Receipt - Bottom Right */}
+                      <View
+                        style={{
+                          position: "absolute",
+                          bottom: 0,
+                          right: 0,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
                       >
-                        {item.translatedText}
-                        {"  "}
                         <Text
                           className={`text-xs ${
                             isSender
@@ -516,10 +504,55 @@ export default function ChatDetailScreen() {
                         </Text>
                         {isSender && (
                           <Text className={`text-xs ${isRead ? "text-green-400" : "text-background opacity-70"}`}>
-                            {" "}{isRead ? "✓✓" : "✓"}
+                            {isRead ? "✓✓" : "✓"}
                           </Text>
                         )}
+                      </View>
+                    </View>
+                  )}
+                  
+                  {!(item as any).media && item.isTranslated && item.translatedText && (
+                    <View className="mt-2 pt-2 border-t border-opacity-30 border-current">
+                      <Text
+                        className={`text-sm italic ${
+                          isSender
+                            ? "text-background opacity-80"
+                            : "text-muted"
+                        }`}
+                        style={{ paddingRight: 60 }}
+                      >
+                        {item.translatedText}
                       </Text>
+                      
+                      {/* Time and Read Receipt for Translation - Bottom Right */}
+                      <View
+                        style={{
+                          position: "absolute",
+                          bottom: 0,
+                          right: 0,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        <Text
+                          className={`text-xs ${
+                            isSender
+                              ? "text-background opacity-70"
+                              : "text-muted"
+                          }`}
+                        >
+                          {new Date(item.createdAt).toLocaleTimeString([], { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })}
+                        </Text>
+                        {isSender && (
+                          <Text className={`text-xs ${isRead ? "text-green-400" : "text-background opacity-70"}`}>
+                            {isRead ? "✓✓" : "✓"}
+                          </Text>
+                        )}
+                      </View>
                     </View>
                   )}
                 </Pressable>

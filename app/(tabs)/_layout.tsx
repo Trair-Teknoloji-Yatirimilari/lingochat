@@ -1,7 +1,6 @@
 import { Tabs, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image, View, TouchableOpacity, StyleSheet } from "react-native";
-import { BlurView } from "expo-blur";
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from "react-native-reanimated";
 
 import { HapticTab } from "@/components/haptic-tab";
@@ -108,24 +107,15 @@ export default function TabLayout() {
             paddingTop: 12,
             paddingBottom: bottomPadding,
             height: tabBarHeight,
-            backgroundColor: "transparent",
-            borderTopWidth: 0,
-            elevation: 0,
+            backgroundColor: colors.background + "F5",
+            borderTopWidth: 0.5,
+            borderTopColor: colors.border + "60",
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: -2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 8,
+            elevation: 8,
           },
-          tabBarBackground: () => (
-            <BlurView
-              intensity={Platform.OS === "ios" ? 80 : 100}
-              tint="light"
-              style={{
-                ...StyleSheet.absoluteFillObject,
-                backgroundColor: Platform.OS === "ios" 
-                  ? "rgba(255, 255, 255, 0.7)" 
-                  : colors.background + "F0",
-                borderTopWidth: 0.5,
-                borderTopColor: colors.border + "40",
-              }}
-            />
-          ),
         }}
       >
         <Tabs.Screen

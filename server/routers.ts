@@ -309,7 +309,92 @@ export const appRouter = router({
       }),
 
     list: protectedProcedure.query(async ({ ctx }) => {
-      return db.getUserConversations(ctx.user.id);
+      const realConversations = await db.getUserConversations(ctx.user.id);
+      
+      // Add mock conversations for demo purposes
+      const mockConversations = [
+        {
+          id: 9001,
+          participant1Id: ctx.user.id,
+          participant2Id: 101,
+          createdAt: new Date(Date.now() - 1000 * 60 * 5), // 5 minutes ago
+          updatedAt: new Date(Date.now() - 1000 * 60 * 5),
+          lastMessage: "Merhaba! Nasılsın?",
+          lastMessageTime: "15:30",
+          unreadCount: 2,
+          isOnline: true,
+          otherUserName: "Ahmet Yılmaz",
+          otherUserAvatar: null,
+        },
+        {
+          id: 9002,
+          participant1Id: ctx.user.id,
+          participant2Id: 102,
+          createdAt: new Date(Date.now() - 1000 * 60 * 30), // 30 minutes ago
+          updatedAt: new Date(Date.now() - 1000 * 60 * 30),
+          lastMessage: "Toplantı saat kaçta?",
+          lastMessageTime: "15:00",
+          unreadCount: 0,
+          isOnline: false,
+          otherUserName: "Ayşe Demir",
+          otherUserAvatar: null,
+        },
+        {
+          id: 9003,
+          participant1Id: ctx.user.id,
+          participant2Id: 103,
+          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
+          updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 2),
+          lastMessage: "Teşekkürler, görüşürüz 👋",
+          lastMessageTime: "13:30",
+          unreadCount: 0,
+          isOnline: true,
+          otherUserName: "Mehmet Kaya",
+          otherUserAvatar: null,
+        },
+        {
+          id: 9004,
+          participant1Id: ctx.user.id,
+          participant2Id: 104,
+          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5), // 5 hours ago
+          updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 5),
+          lastMessage: "Dosyaları gönderdim, kontrol eder misin?",
+          lastMessageTime: "10:30",
+          unreadCount: 3,
+          isOnline: false,
+          otherUserName: "Zeynep Şahin",
+          otherUserAvatar: null,
+        },
+        {
+          id: 9005,
+          participant1Id: ctx.user.id,
+          participant2Id: 105,
+          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
+          updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24),
+          lastMessage: "Yarın görüşelim mi?",
+          lastMessageTime: "Dün",
+          unreadCount: 0,
+          isOnline: true,
+          otherUserName: "Can Özdemir",
+          otherUserAvatar: null,
+        },
+        {
+          id: 9006,
+          participant1Id: ctx.user.id,
+          participant2Id: 106,
+          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2), // 2 days ago
+          updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2),
+          lastMessage: "Harika! Çok beğendim 🎉",
+          lastMessageTime: "Pzt",
+          unreadCount: 1,
+          isOnline: false,
+          otherUserName: "Elif Yıldız",
+          otherUserAvatar: null,
+        },
+      ];
+      
+      // Combine real and mock conversations
+      return [...mockConversations, ...realConversations];
     }),
 
     get: protectedProcedure
@@ -350,7 +435,19 @@ export const appRouter = router({
 
     get: protectedProcedure
       .input(z.object({ id: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ input, ctx }) => {
+        // Check if it's a mock conversation
+        if (input.id >= 9001 && input.id <= 9006) {
+          return {
+            id: input.id,
+            participant1Id: ctx.user.id,
+            participant2Id: input.id - 9000 + 100, // 101-106
+            createdAt: new Date(Date.now() - 1000 * 60 * 60),
+            updatedAt: new Date(Date.now() - 1000 * 60 * 5),
+          };
+        }
+        
+        // Real conversation
         return db.getConversation(input.id);
       }),
   }),
@@ -436,11 +533,125 @@ export const appRouter = router({
         conversationId: z.number(),
         limit: z.number().default(50),
       }))
-      .query(async ({ input }) => {
-        const messages = await db.getConversationMessages(input.conversationId, input.limit);
+      .query(async ({ input, ctx }) => {
+        const realMessages = await db.getConversationMessages(input.conversationId, input.limit);
         
-        // Get media for all messages
-        const messageIds = messages.map((m) => m.id);
+        // Add mock messages for demo conversations (9001-9006)
+        if (input.conversationId >= 9001 && input.conversationId <= 9006) {
+          const mockMessages = [
+            {
+              id: input.conversationId * 1000 + 1,
+              conversationId: input.conversationId,
+              senderId: input.conversationId === 9001 ? 101 : ctx.user.id,
+              originalText: "Merhaba! Nasılsın?",
+              translatedText: null,
+              senderLanguage: "tr",
+              recipientLanguage: "tr",
+              isTranslated: false,
+              createdAt: new Date(Date.now() - 1000 * 60 * 10),
+              updatedAt: new Date(Date.now() - 1000 * 60 * 10),
+              deletedAt: null,
+              deletedBy: null,
+              autoDeleteAt: null,
+            },
+            {
+              id: input.conversationId * 1000 + 2,
+              conversationId: input.conversationId,
+              senderId: input.conversationId === 9001 ? ctx.user.id : 101,
+              originalText: "İyiyim, teşekkürler! Sen nasılsın?",
+              translatedText: null,
+              senderLanguage: "tr",
+              recipientLanguage: "tr",
+              isTranslated: false,
+              createdAt: new Date(Date.now() - 1000 * 60 * 9),
+              updatedAt: new Date(Date.now() - 1000 * 60 * 9),
+              deletedAt: null,
+              deletedBy: null,
+              autoDeleteAt: null,
+            },
+            {
+              id: input.conversationId * 1000 + 3,
+              conversationId: input.conversationId,
+              senderId: input.conversationId === 9001 ? 101 : ctx.user.id,
+              originalText: "Bugün hava çok güzel, dışarı çıkmayı düşünüyorum 🌞",
+              translatedText: null,
+              senderLanguage: "tr",
+              recipientLanguage: "tr",
+              isTranslated: false,
+              createdAt: new Date(Date.now() - 1000 * 60 * 8),
+              updatedAt: new Date(Date.now() - 1000 * 60 * 8),
+              deletedAt: null,
+              deletedBy: null,
+              autoDeleteAt: null,
+            },
+            {
+              id: input.conversationId * 1000 + 4,
+              conversationId: input.conversationId,
+              senderId: input.conversationId === 9001 ? ctx.user.id : 101,
+              originalText: "Harika fikir! Ben de katılabilirim 😊",
+              translatedText: null,
+              senderLanguage: "tr",
+              recipientLanguage: "tr",
+              isTranslated: false,
+              createdAt: new Date(Date.now() - 1000 * 60 * 7),
+              updatedAt: new Date(Date.now() - 1000 * 60 * 7),
+              deletedAt: null,
+              deletedBy: null,
+              autoDeleteAt: null,
+            },
+            {
+              id: input.conversationId * 1000 + 5,
+              conversationId: input.conversationId,
+              senderId: input.conversationId === 9001 ? 101 : ctx.user.id,
+              originalText: "Saat 15:00'te buluşalım mı?",
+              translatedText: null,
+              senderLanguage: "tr",
+              recipientLanguage: "tr",
+              isTranslated: false,
+              createdAt: new Date(Date.now() - 1000 * 60 * 6),
+              updatedAt: new Date(Date.now() - 1000 * 60 * 6),
+              deletedAt: null,
+              deletedBy: null,
+              autoDeleteAt: null,
+            },
+            {
+              id: input.conversationId * 1000 + 6,
+              conversationId: input.conversationId,
+              senderId: input.conversationId === 9001 ? ctx.user.id : 101,
+              originalText: "Tamam, görüşürüz! 👋",
+              translatedText: null,
+              senderLanguage: "tr",
+              recipientLanguage: "tr",
+              isTranslated: false,
+              createdAt: new Date(Date.now() - 1000 * 60 * 5),
+              updatedAt: new Date(Date.now() - 1000 * 60 * 5),
+              deletedAt: null,
+              deletedBy: null,
+              autoDeleteAt: null,
+            },
+          ];
+          
+          // Combine mock and real messages
+          const allMessages = [...mockMessages, ...realMessages];
+          
+          // Get media for all messages
+          const messageIds = allMessages.map((m) => m.id);
+          const mediaMessages = await Promise.all(
+            messageIds.map((id) => db.getMediaMessageByMessageId(id))
+          );
+          const mediaMap = new Map(
+            mediaMessages.filter((m) => m).map((m) => [m!.messageId, m])
+          );
+
+          // Attach media to messages
+          return allMessages.map((msg) => ({
+            ...msg,
+            media: mediaMap.get(msg.id) || null,
+          }));
+        }
+        
+        // For real conversations, use existing logic
+        const messageIds = realMessages.map((m) => m.id);
         const mediaMessages = await Promise.all(
           messageIds.map((id) => db.getMediaMessageByMessageId(id))
         );
@@ -449,7 +660,7 @@ export const appRouter = router({
         );
 
         // Attach media to messages
-        return messages.map((msg) => ({
+        return realMessages.map((msg) => ({
           ...msg,
           media: mediaMap.get(msg.id) || null,
         }));

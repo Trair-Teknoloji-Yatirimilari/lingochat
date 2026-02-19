@@ -139,21 +139,37 @@ export function MediaAttachmentMenu({
       });
 
       if (data.length > 0) {
-        // For now, we'll show a simple picker
-        // In production, you'd show a proper contact picker UI
+        // İlk kişiyi test için gönder
+        const firstContact = data[0];
+        onContactSelected({
+          name: firstContact.name || "İsimsiz Kişi",
+          phoneNumbers: firstContact.phoneNumbers || [],
+          emails: firstContact.emails || [],
+        });
+        onClose();
+        Alert.alert("Başarılı", `${firstContact.name || "Kişi"} gönderildi`);
+      } else {
+        // Rehberde kişi yoksa mock kişi gönder
         Alert.alert(
-          "Kişi Seç",
-          "Rehber açılacak (UI geliştirme aşamasında)",
+          "Test Kişisi",
+          "Rehberinizde kişi bulunamadı. Test kişisi göndermek ister misiniz?",
           [
             { text: "İptal", style: "cancel" },
             {
               text: "Test Kişisi Gönder",
               onPress: () => {
                 onContactSelected({
-                  name: data[0].name,
-                  phoneNumbers: data[0].phoneNumbers,
+                  name: "Ahmet Yılmaz",
+                  phoneNumbers: [
+                    { label: "mobile", number: "+90 532 123 4567" },
+                    { label: "home", number: "+90 212 345 6789" },
+                  ],
+                  emails: [
+                    { label: "work", email: "ahmet@example.com" },
+                  ],
                 });
                 onClose();
+                Alert.alert("Başarılı", "Test kişisi gönderildi");
               },
             },
           ]

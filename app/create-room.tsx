@@ -15,6 +15,7 @@ export default function CreateRoomScreen() {
   const [loading, setLoading] = useState(false);
 
   const createRoomMutation = trpc.groups.createRoom.useMutation();
+  const utils = trpc.useContext();
 
   const handleCreateRoom = async () => {
     if (!roomName.trim()) {
@@ -48,7 +49,7 @@ export default function CreateRoomScreen() {
               text: "Odaya Git",
               onPress: () => {
                 // Invalidate query to refresh groups list
-                trpc.useContext().groups.getMyRooms.invalidate();
+                utils.groups.getMyRooms.invalidate();
                 router.replace(`/room-detail?roomId=${roomId}` as any);
               },
             },
