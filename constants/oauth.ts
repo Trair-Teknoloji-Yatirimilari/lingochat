@@ -45,6 +45,11 @@ export function getApiBaseUrl(): string {
     }
   }
 
+  // On iOS/Android simulator/emulator, use localhost
+  if (ReactNative.Platform.OS === "ios" || ReactNative.Platform.OS === "android") {
+    return "http://localhost:3000";
+  }
+
   // Fallback to empty (will use relative URL)
   return "";
 }
