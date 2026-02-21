@@ -22,10 +22,6 @@
     },
     "production": {
       "autoIncrement": true,
-      "ios": {
-        "simulator": false,
-        "buildType": "app-store"
-      },
       "android": {
         "buildType": "app-bundle"
       }
