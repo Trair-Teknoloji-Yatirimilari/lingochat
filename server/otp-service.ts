@@ -15,7 +15,8 @@ const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER;
 
 // Debug: Log Twilio credentials on startup
 console.log("[OTP] SMS Provider:", SMS_PROVIDER);
-console.log("[OTP] Twilio Account SID:", TWILIO_ACCOUNT_SID ? `${TWILIO_ACCOUNT_SID.substring(0, 10)}...` : "NOT SET");
+console.log("[OTP] Twilio Account SID:", TWILIO_ACCOUNT_SID || "NOT SET");
+console.log("[OTP] Twilio Account SID Length:", TWILIO_ACCOUNT_SID?.length || 0);
 console.log("[OTP] Twilio Auth Token:", TWILIO_AUTH_TOKEN ? "SET" : "NOT SET");
 console.log("[OTP] Twilio Phone:", TWILIO_PHONE_NUMBER || "NOT SET");
 
