@@ -1,19 +1,18 @@
 import { getDb } from "./db";
 import { otpCodes, phoneVerifications, users, userProfiles } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
-import twilio from "twilio";
 
 // Generate random 6-digit OTP
 export function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// Initialize Twilio client
-const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN
-  ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
-  : null;
+// Twilio Verify credentials
+const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
+const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
+const TWILIO_VERIFY_SERVICE_SID = process.env.TWILIO_VERIFY_SERVICE_SID;
 
-// Send OTP to phone number
+// Send OTP to phone number using Twilio Verify API
 export async function sendOTP(phoneNumber: string): Promise<string> {
   const otp = generateOTP();
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
@@ -31,26 +30,37 @@ export async function sendOTP(phoneNumber: string): Promise<string> {
     expiresAt,
   });
 
-  // Prepare SMS message
-  const message = `LingoChat dogrulama kodu: ${otp}. 10 dakika gecerlidir.`;
-
-  // Send SMS via Twilio
-  if (twilioClient) {
+  // Send SMS via Twilio Verify API (production-ready OTP service)
+  if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_VERIFY_SERVICE_SID) {
     try {
-      const result = await twilioClient.messages.create({
-        body: message,
-        to: phoneNumber,
-        from: process.env.TWILIO_PHONE_NUMBER,
+      const url = `https://verify.twilio.com/v2/Services/${TWILIO_VERIFY_SERVICE_SID}/Verifications`;
+      const params = new URLSearchParams();
+      params.append('To', phoneNumber);
+      params.append('Channel', 'sms');
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Basic ' + Buffer.from(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString('base64'),
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: params.toString(),
       });
-      
-      console.log(`✅ [Twilio] SMS sent to ${phoneNumber}, SID: ${result.sid}`);
-      console.log(`📱 [OTP] Code for ${phoneNumber}: ${otp}`); // TEMPORARY: Show OTP in logs
+
+      const data = await response.json() as any;
+
+      if (response.ok && data.status === 'pending') {
+        console.log(`✅ [Twilio Verify] OTP sent to ${phoneNumber}, SID: ${data.sid}`);
+      } else {
+        console.error(`❌ [Twilio Verify] Failed: ${data.message || data.code}`);
+        console.log(`📱 [OTP] FALLBACK - Code for ${phoneNumber}: ${otp}`);
+      }
     } catch (error: any) {
-      console.error(`❌ [Twilio] SMS failed:`, error.message);
-      console.log(`[OTP] FALLBACK - OTP ${otp} for ${phoneNumber}`);
+      console.error(`❌ [Twilio Verify] Error:`, error.message);
+      console.log(`📱 [OTP] FALLBACK - Code for ${phoneNumber}: ${otp}`);
     }
   } else {
-    console.log(`[OTP] TEST MODE - OTP ${otp} for ${phoneNumber}`);
+    console.log(`📱 [OTP] TEST MODE - Code for ${phoneNumber}: ${otp}`);
   }
 
   return otp;
