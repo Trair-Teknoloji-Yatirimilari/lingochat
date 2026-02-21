@@ -252,6 +252,8 @@ export const groupRouter = router({
       const userProfile = await db.getUserProfile(ctx.user.id);
       const userLanguage = userProfile?.preferredLanguage || "tr";
 
+      console.log("[GroupMessages] User:", ctx.user.id, "Language:", userLanguage);
+
       const messages = await db.getGroupMessages(input.roomId, input.limit);
 
       // Get sender profiles for all messages

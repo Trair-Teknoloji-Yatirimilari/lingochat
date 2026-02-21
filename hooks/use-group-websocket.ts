@@ -27,6 +27,10 @@ export function useGroupWebSocket(roomId: number | null) {
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
+    // WebSocket temporarily disabled - using HTTP polling instead
+    console.log("[GroupWS] WebSocket disabled, using HTTP polling");
+    return;
+    
     if (!roomId || !user) return;
 
     // Get WebSocket URL based on platform
