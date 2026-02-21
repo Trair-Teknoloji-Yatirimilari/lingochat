@@ -1,215 +1,17 @@
 import { getDb } from "./db";
 import { otpCodes, phoneVerifications, users, userProfiles } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
-
-// SMS Provider types
-type SMSProvider = "twilio" | "netgsm" | "console";
-
-// SMS Provider interface
-interface SMSProviderInterface {
-  sendSMS(to: string, message: string): Promise<{ success: boolean; messageId?: string; error?: string }>;
-}
+import twilio from "twilio";
 
 // Generate random 6-digit OTP
 export function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-/**
- * Twilio SMS Provider - Production ready implementation
- */
-class TwilioSMSProvider implements SMSProviderInterface {
-  private accountSid: string;
-  private authToken: string;
-  private fromNumber: string | null;
-  private messagingServiceSid: string | null;
-
-  constructor(
-    accountSid: string,
-    authToken: string,
-    fromNumber?: string,
-    messagingServiceSid?: string
-  ) {
-    this.accountSid = accountSid;
-    this.authToken = authToken;
-    this.fromNumber = fromNumber || null;
-    this.messagingServiceSid = messagingServiceSid || null;
-
-    console.log("[Twilio] Initialized");
-    if (this.messagingServiceSid) {
-      console.log("[Twilio] Using Messaging Service:", this.messagingServiceSid);
-    } else if (this.fromNumber) {
-      console.log("[Twilio] Using From number:", this.fromNumber);
-    }
-  }
-
-  async sendSMS(to: string, message: string): Promise<{ success: boolean; messageId?: string; error?: string }> {
-    try {
-      const url = `https://api.twilio.com/2010-04-01/Accounts/${this.accountSid}/Messages.json`;
-      
-      // Prepare form data
-      const params = new URLSearchParams();
-      params.append('To', to);
-      params.append('Body', message);
-
-      // Use Messaging Service for better delivery (same routing as Safely)
-      if (this.messagingServiceSid) {
-        params.append('MessagingServiceSid', this.messagingServiceSid);
-      } else if (this.fromNumber) {
-        params.append('From', this.fromNumber);
-      } else {
-        return { success: false, error: 'Neither MessagingServiceSid nor From number configured' };
-      }
-
-      // Make API request
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': 'Basic ' + Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64'),
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: params.toString(),
-      });
-
-      const data = await response.json() as any;
-
-      if (response.ok) {
-        console.log(`✅ [Twilio] SMS sent successfully to ${to}, SID: ${data.sid}`);
-        return { success: true, messageId: data.sid };
-      } else {
-        console.error(`❌ [Twilio] SMS failed: ${data.message}`);
-        return { success: false, error: data.message };
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`❌ [Twilio] SMS error: ${errorMessage}`);
-      return { success: false, error: errorMessage };
-    }
-  }
-}
-
-/**
- * NetGSM SMS Provider
- */
-class NetgsmSMSProvider implements SMSProviderInterface {
-  private username: string;
-  private password: string;
-  private header: string;
-
-  constructor(username: string, password: string, header: string) {
-    this.username = username;
-    this.password = password;
-    this.header = header;
-    console.log("[NetGSM] Initialized");
-  }
-
-  async sendSMS(to: string, message: string): Promise<{ success: boolean; messageId?: string; error?: string }> {
-    try {
-      // NetGSM expects phone number without + prefix
-      const cleanNumber = to.replace(/^\+/, '');
-
-      const url = 'https://api.netgsm.com.tr/sms/send/get';
-      const params = new URLSearchParams({
-        usercode: this.username,
-        password: this.password,
-        gsmno: cleanNumber,
-        message: message,
-        msgheader: this.header,
-      });
-
-      const response = await fetch(`${url}?${params.toString()}`, {
-        method: 'GET',
-      });
-
-      const responseText = await response.text();
-
-      // NetGSM returns "00" or "01" for success
-      if (responseText.startsWith('00') || responseText.startsWith('01')) {
-        const messageId = responseText.split(' ')[1] || responseText;
-        console.log(`✅ [NetGSM] SMS sent successfully to ${to}, ID: ${messageId}`);
-        return { success: true, messageId };
-      } else {
-        const errorMap: { [key: string]: string } = {
-          '20': 'Invalid message content',
-          '30': 'Invalid username or password',
-          '40': 'Invalid message header',
-          '50': 'Invalid phone number',
-          '51': 'Insufficient credits',
-          '70': 'Invalid parameters',
-        };
-        const error = errorMap[responseText] || `NetGSM error code: ${responseText}`;
-        console.error(`❌ [NetGSM] SMS failed: ${error}`);
-        return { success: false, error };
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`❌ [NetGSM] SMS error: ${errorMessage}`);
-      return { success: false, error: errorMessage };
-    }
-  }
-}
-
-/**
- * Mock SMS Provider for development
- */
-class MockSMSProvider implements SMSProviderInterface {
-  async sendSMS(to: string, message: string): Promise<{ success: boolean; messageId?: string; error?: string }> {
-    console.log(`📨 [MOCK SMS] To: ${to}`);
-    console.log(`📨 [MOCK SMS] Message: ${message}`);
-    
-    // Simulate SMS sending delay
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    const messageId = `mock_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    return { success: true, messageId };
-  }
-}
-
-/**
- * Initialize SMS provider based on environment configuration
- */
-function initializeSMSProvider(): SMSProviderInterface {
-  const providerType = (process.env.SMS_PROVIDER || "console") as SMSProvider;
-
-  switch (providerType.toLowerCase()) {
-    case 'twilio': {
-      const twilioSid = process.env.TWILIO_ACCOUNT_SID;
-      const twilioToken = process.env.TWILIO_AUTH_TOKEN;
-      const twilioNumber = process.env.TWILIO_PHONE_NUMBER;
-      const twilioMsgSvcSid = process.env.TWILIO_MESSAGING_SERVICE_SID;
-
-      if (!twilioSid || !twilioToken) {
-        console.warn('⚠️  Twilio credentials not configured, falling back to mock provider');
-        return new MockSMSProvider();
-      }
-
-      console.log('📱 SMS Service initialized with Twilio provider');
-      return new TwilioSMSProvider(twilioSid, twilioToken, twilioNumber, twilioMsgSvcSid);
-    }
-
-    case 'netgsm': {
-      const netgsmUser = process.env.NETGSM_USERNAME;
-      const netgsmPass = process.env.NETGSM_PASSWORD;
-      const netgsmHeader = process.env.NETGSM_HEADER || 'LINGOCHAT';
-
-      if (!netgsmUser || !netgsmPass) {
-        console.warn('⚠️  NetGSM credentials not configured, falling back to mock provider');
-        return new MockSMSProvider();
-      }
-
-      console.log('📱 SMS Service initialized with NetGSM provider');
-      return new NetgsmSMSProvider(netgsmUser, netgsmPass, netgsmHeader);
-    }
-
-    case 'console':
-    default:
-      console.log('📱 SMS Service initialized with Mock provider (development mode)');
-      return new MockSMSProvider();
-  }
-}
-
-// Initialize provider once
-const smsProvider = initializeSMSProvider();
+// Initialize Twilio client
+const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN
+  ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
+  : null;
 
 // Send OTP to phone number
 export async function sendOTP(phoneNumber: string): Promise<string> {
@@ -232,13 +34,22 @@ export async function sendOTP(phoneNumber: string): Promise<string> {
   // Prepare SMS message
   const message = `LingoChat verification code: ${otp}. Valid for 10 minutes.`;
 
-  // Send SMS using provider
-  const result = await smsProvider.sendSMS(phoneNumber, message);
-
-  if (!result.success) {
-    console.error(`[OTP] Failed to send SMS: ${result.error}`);
-    // In case of SMS failure, still log to console for testing
-    console.log(`[OTP] FALLBACK - OTP ${otp} for ${phoneNumber}`);
+  // Send SMS via Twilio
+  if (twilioClient) {
+    try {
+      const result = await twilioClient.messages.create({
+        body: message,
+        to: phoneNumber,
+        from: process.env.TWILIO_PHONE_NUMBER,
+      });
+      
+      console.log(`✅ [Twilio] SMS sent to ${phoneNumber}, SID: ${result.sid}`);
+    } catch (error: any) {
+      console.error(`❌ [Twilio] SMS failed:`, error.message);
+      console.log(`[OTP] FALLBACK - OTP ${otp} for ${phoneNumber}`);
+    }
+  } else {
+    console.log(`[OTP] TEST MODE - OTP ${otp} for ${phoneNumber}`);
   }
 
   return otp;
@@ -290,7 +101,6 @@ export async function verifyOTP(
   await db.update(otpCodes).set({ verified: true }).where(eq(otpCodes.id, otp.id));
 
   // Check if user already exists with this phone number
-  // First check phoneVerifications table
   const existingVerification = await db
     .select()
     .from(phoneVerifications)
@@ -300,7 +110,6 @@ export async function verifyOTP(
   let user;
   
   if (existingVerification.length > 0) {
-    // User exists, get user by ID
     const existingUserId = existingVerification[0].userId;
     const existingUser = await db
       .select()
@@ -314,7 +123,6 @@ export async function verifyOTP(
     }
   }
 
-  // If no user found, check by email (phone number stored as email)
   if (!user) {
     const userByEmail = await db
       .select()
@@ -328,7 +136,6 @@ export async function verifyOTP(
     }
   }
 
-  // If still no user, create new one
   if (!user) {
     console.log(`[OTP] Creating new user for: ${phoneNumber}`);
     const newUserResult = await db
@@ -343,7 +150,6 @@ export async function verifyOTP(
 
     user = newUserResult;
 
-    // Create user profile with default username
     await db.insert(userProfiles).values({
       userId: user[0].id,
       username: `user_${user[0].id}`,
@@ -352,7 +158,6 @@ export async function verifyOTP(
     });
   }
 
-  // Update or create phone verification record
   await db
     .insert(phoneVerifications)
     .values({
@@ -379,7 +184,6 @@ export async function resendOTP(phoneNumber: string): Promise<string> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  // Check if previous OTP is still valid
   const otpRecord = await db
     .select()
     .from(otpCodes)
@@ -387,10 +191,8 @@ export async function resendOTP(phoneNumber: string): Promise<string> {
     .limit(1);
 
   if (otpRecord.length && new Date() < otpRecord[0].expiresAt) {
-    // Return existing OTP if still valid
     return otpRecord[0].code;
   }
 
-  // Send new OTP
   return sendOTP(phoneNumber);
 }
