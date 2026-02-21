@@ -21,6 +21,7 @@ import { initManusRuntime, subscribeSafeAreaInsets } from "@/lib/_core/manus-run
 import { useNotifications } from "@/hooks/use-notifications";
 import { PushTokenRegistrar } from "@/components/push-token-registrar";
 import "@/lib/i18n"; // Initialize i18n
+import { initSentry, initPostHog } from "@/lib/monitoring";
 
 const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
@@ -38,6 +39,12 @@ export default function RootLayout() {
 
   // Initialize push notifications
   useNotifications();
+
+  // Initialize monitoring (Sentry & PostHog)
+  useEffect(() => {
+    initSentry();
+    initPostHog();
+  }, []);
 
   // Initialize Manus runtime for cookie injection from parent container
   useEffect(() => {
