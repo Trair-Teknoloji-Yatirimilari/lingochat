@@ -95,7 +95,10 @@ export default function GroupsScreen() {
         
         // Navigate to room detail
         if (result.room?.id) {
-          router.push(`/room-detail?roomId=${result.room.id}` as any);
+          router.push({
+            pathname: "/room-detail",
+            params: { roomId: result.room.id.toString() }
+          });
         } else {
           Alert.alert(t('common.success'), result.message || "You joined the room");
         }
@@ -111,7 +114,10 @@ export default function GroupsScreen() {
   };
 
   const handleRoomPress = (roomId: number) => {
-    router.push(`/room-detail?roomId=${roomId}` as any);
+    router.push({
+      pathname: "/room-detail",
+      params: { roomId: roomId.toString() }
+    });
   };
 
   // Filter rooms based on search query
@@ -186,7 +192,10 @@ export default function GroupsScreen() {
                         try {
                           const result = await joinRoomMutation.mutateAsync({ roomCode: code.toUpperCase() });
                           if (result.success && result.room?.id) {
-                            router.push(`/room-detail?roomId=${result.room.id}` as any);
+                            router.push({
+                              pathname: "/room-detail",
+                              params: { roomId: result.room.id.toString() }
+                            });
                           } else {
                             Alert.alert(t('common.error'), result.message || "Could not join room");
                           }
