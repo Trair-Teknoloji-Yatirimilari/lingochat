@@ -66,7 +66,7 @@ export async function sendOTP(phoneNumber: string): Promise<string> {
   return otp;
 }
 
-// Verify OTP code
+// Verify OTP code using Twilio Verify API
 export async function verifyOTP(
   phoneNumber: string,
   code: string
@@ -74,42 +74,68 @@ export async function verifyOTP(
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  // Find OTP code
-  const otpRecord = await db
-    .select()
-    .from(otpCodes)
-    .where(eq(otpCodes.phoneNumber, phoneNumber))
-    .limit(1);
+  // Verify with Twilio Verify API
+  if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_VERIFY_SERVICE_SID) {
+    try {
+      const url = `https://verify.twilio.com/v2/Services/${TWILIO_VERIFY_SERVICE_SID}/VerificationCheck`;
+      const params = new URLSearchParams();
+      params.append('To', phoneNumber);
+      params.append('Code', code);
 
-  if (!otpRecord.length) {
-    return { success: false, message: "OTP not found" };
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Basic ' + Buffer.from(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString('base64'),
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: params.toString(),
+      });
+
+      const data = await response.json() as any;
+
+      if (!response.ok || data.status !== 'approved') {
+        console.log(`❌ [Twilio Verify] Verification failed for ${phoneNumber}: ${data.status || data.message}`);
+        return { success: false, message: "Invalid or expired OTP" };
+      }
+
+      console.log(`✅ [Twilio Verify] OTP verified for ${phoneNumber}`);
+    } catch (error: any) {
+      console.error(`❌ [Twilio Verify] Verification error:`, error.message);
+      return { success: false, message: "OTP verification failed" };
+    }
+  } else {
+    // Fallback to database verification (development mode)
+    const otpRecord = await db
+      .select()
+      .from(otpCodes)
+      .where(eq(otpCodes.phoneNumber, phoneNumber))
+      .limit(1);
+
+    if (!otpRecord.length) {
+      return { success: false, message: "OTP not found" };
+    }
+
+    const otp = otpRecord[0];
+
+    if (new Date() > otp.expiresAt) {
+      return { success: false, message: "OTP expired" };
+    }
+
+    if (otp.attempts >= otp.maxAttempts) {
+      return { success: false, message: "Max attempts exceeded" };
+    }
+
+    if (otp.code !== code) {
+      await db
+        .update(otpCodes)
+        .set({ attempts: otp.attempts + 1 })
+        .where(eq(otpCodes.id, otp.id));
+
+      return { success: false, message: "Invalid OTP" };
+    }
+
+    await db.update(otpCodes).set({ verified: true }).where(eq(otpCodes.id, otp.id));
   }
-
-  const otp = otpRecord[0];
-
-  // Check if OTP is expired
-  if (new Date() > otp.expiresAt) {
-    return { success: false, message: "OTP expired" };
-  }
-
-  // Check if max attempts exceeded
-  if (otp.attempts >= otp.maxAttempts) {
-    return { success: false, message: "Max attempts exceeded" };
-  }
-
-  // Check if code matches
-  if (otp.code !== code) {
-    // Increment attempts
-    await db
-      .update(otpCodes)
-      .set({ attempts: otp.attempts + 1 })
-      .where(eq(otpCodes.id, otp.id));
-
-    return { success: false, message: "Invalid OTP" };
-  }
-
-  // Mark OTP as verified
-  await db.update(otpCodes).set({ verified: true }).where(eq(otpCodes.id, otp.id));
 
   // Check if user already exists with this phone number
   const existingVerification = await db
