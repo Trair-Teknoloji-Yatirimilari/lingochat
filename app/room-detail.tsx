@@ -139,6 +139,8 @@ export default function RoomDetailScreen() {
     { 
       enabled: !!roomId,
       refetchInterval: 2000, // Poll every 2 seconds for real-time feel
+      refetchOnWindowFocus: true, // Refetch when window gains focus
+      refetchOnMount: true, // Refetch on mount
     }
   );
 
@@ -202,6 +204,15 @@ export default function RoomDetailScreen() {
       }
     };
   }, [roomId, refetchMessages]);
+
+  // Manual polling as backup (every 3 seconds)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refetchMessages();
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [refetchMessages]);
 
   // Filter messages based on search query
   const filteredMessages = messages.filter((message) => {
@@ -1241,6 +1252,14 @@ export default function RoomDetailScreen() {
               setMessageText(text);
               handleTyping();
             }}
+            onSubmitEditing={() => {
+              if (selectedMedia) {
+                handleSendMedia();
+              } else {
+                handleSendMessage();
+              }
+            }}
+            blurOnSubmit={false}
             placeholder={t('roomDetail.typeMessage')}
             placeholderTextColor={colors.muted}
             multiline
