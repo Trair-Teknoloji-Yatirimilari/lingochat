@@ -209,7 +209,7 @@ export default function RoomDetailScreen() {
   useEffect(() => {
     const interval = setInterval(() => {
       refetchMessages();
-    }, 3000);
+    }, 1000);
 
     return () => clearInterval(interval);
   }, [refetchMessages]);
