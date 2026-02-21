@@ -52,7 +52,11 @@ export default function CreateRoomScreen() {
               onPress: () => {
                 // Invalidate query to refresh groups list
                 utils.groups.getMyRooms.invalidate();
-                router.replace(`/room-detail?roomId=${roomId}` as any);
+                // Use push instead of replace to avoid crash
+                router.push({
+                  pathname: "/room-detail",
+                  params: { roomId: roomId.toString() }
+                });
               },
             },
           ]

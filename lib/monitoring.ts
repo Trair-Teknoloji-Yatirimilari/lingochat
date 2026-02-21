@@ -11,24 +11,28 @@ export function initSentry() {
     return;
   }
 
-  Sentry.init({
-    dsn,
-    debug: __DEV__,
-    environment: __DEV__ ? "development" : "production",
-    tracesSampleRate: 1.0,
-    enableAutoSessionTracking: true,
-    sessionTrackingIntervalMillis: 30000,
-    beforeSend(event) {
-      // Don't send events in development
-      if (__DEV__) {
-        console.log("[Sentry] Event captured (dev mode, not sent):", event);
-        return null;
-      }
-      return event;
-    },
-  });
+  try {
+    Sentry.init({
+      dsn,
+      debug: __DEV__,
+      environment: __DEV__ ? "development" : "production",
+      tracesSampleRate: 1.0,
+      enableAutoSessionTracking: true,
+      sessionTrackingIntervalMillis: 30000,
+      beforeSend(event) {
+        // Don't send events in development
+        if (__DEV__) {
+          console.log("[Sentry] Event captured (dev mode, not sent):", event);
+          return null;
+        }
+        return event;
+      },
+    });
 
-  console.log("[Sentry] Initialized successfully");
+    console.log("[Sentry] Initialized successfully");
+  } catch (error) {
+    console.error("[Sentry] Initialization failed:", error);
+  }
 }
 
 // PostHog Configuration
