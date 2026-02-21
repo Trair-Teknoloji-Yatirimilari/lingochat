@@ -1,6 +1,5 @@
-import * as Sentry from "@sentry/react-native";
+import * as Sentry from "sentry-expo";
 import PostHog from "posthog-react-native";
-import Constants from "expo-constants";
 
 // Sentry Configuration
 export function initSentry() {
@@ -16,17 +15,8 @@ export function initSentry() {
       dsn,
       debug: __DEV__,
       environment: __DEV__ ? "development" : "production",
+      enableInExpoDevelopment: false,
       tracesSampleRate: 1.0,
-      enableAutoSessionTracking: true,
-      sessionTrackingIntervalMillis: 30000,
-      beforeSend(event) {
-        // Don't send events in development
-        if (__DEV__) {
-          console.log("[Sentry] Event captured (dev mode, not sent):", event);
-          return null;
-        }
-        return event;
-      },
     });
 
     console.log("[Sentry] Initialized successfully");
