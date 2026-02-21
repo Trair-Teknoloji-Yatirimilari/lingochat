@@ -64,7 +64,41 @@ export default function RoomDetailScreen() {
   const { t } = useI18n();
   const scrollViewRef = useRef<ScrollView>(null);
 
-  const roomId = parseInt(params.roomId as string);
+  // Safe roomId parsing with validation
+  const roomIdParam = params.roomId;
+  const roomId = roomIdParam ? parseInt(roomIdParam as string, 10) : 0;
+
+  // Early return if invalid roomId
+  if (!roomId || isNaN(roomId)) {
+    return (
+      <ScreenContainer>
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 20 }}>
+          <Ionicons name="alert-circle-outline" size={64} color={colors.error || "#EF4444"} />
+          <Text style={{ color: colors.foreground, fontSize: 18, fontWeight: "600", marginTop: 16 }}>
+            {t('roomDetail.notFound')}
+          </Text>
+          <Text style={{ color: colors.muted, fontSize: 14, marginTop: 8, textAlign: "center" }}>
+            Invalid room ID. Please try again.
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={{
+              marginTop: 24,
+              backgroundColor: colors.primary,
+              paddingHorizontal: 24,
+              paddingVertical: 12,
+              borderRadius: 8,
+            }}
+          >
+            <Text style={{ color: "#ffffff", fontWeight: "600" }}>
+              {t('roomDetail.goBack')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </ScreenContainer>
+    );
+  }
+
   const [messageText, setMessageText] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [sending, setSending] = useState(false);
@@ -91,7 +125,7 @@ export default function RoomDetailScreen() {
   // Fetch room details
   const { data: room, isLoading: roomLoading } = trpc.groups.getRoom.useQuery(
     { roomId },
-    { enabled: !!roomId }
+    { enabled: !!roomId && roomId > 0 }
   );
 
   // Fetch messages

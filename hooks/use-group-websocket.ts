@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { Platform } from "react-native";
 import { useAuth } from "./use-auth";
+import Constants from "expo-constants";
 
 interface GroupMessage {
   id: number;
@@ -27,9 +29,17 @@ export function useGroupWebSocket(roomId: number | null) {
   useEffect(() => {
     if (!roomId || !user) return;
 
-    // Connect to WebSocket
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}`;
+    // Get WebSocket URL based on platform
+    let wsUrl: string;
+    
+    if (Platform.OS === "web") {
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      wsUrl = `${protocol}//${window.location.host}`;
+    } else {
+      // React Native - use API base URL
+      const apiUrl = process.env.EXPO_PUBLIC_API_BASE_URL || Constants.expoConfig?.extra?.apiUrl || "http://localhost:3000";
+      wsUrl = apiUrl.replace("http://", "ws://").replace("https://", "wss://");
+    }
     
     try {
       const ws = new WebSocket(wsUrl);
