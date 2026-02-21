@@ -86,8 +86,8 @@ LingoChat is developed by TrairX Technology O.Ü, a technology company based in 
 Need help? Contact us at info@trairx.com
 
 **LEGAL:**
-Privacy Policy: https://www.trairx.com/lingochat/privacy
-Terms of Service: https://www.trairx.com/lingochat/terms
+Privacy Policy: https://www.lingo-chat.com/privacy.html
+Terms of Service: https://www.lingo-chat.com/terms.html
 
 ### Keywords (100 characters max, comma-separated)
 translation,chat,messenger,language,multilingual,AI,international,global,communication,translate
@@ -313,9 +313,9 @@ Same as above
 
 ## 📞 Support & Contact
 
-**Support URL**: https://www.trairx.com/lingochat
-**Marketing URL**: https://www.trairx.com/lingochat
-**Privacy Policy URL**: https://www.trairx.com/lingochat/privacy
+**Support URL**: https://www.lingo-chat.com
+**Marketing URL**: https://www.lingo-chat.com
+**Privacy Policy URL**: https://www.lingo-chat.com/privacy.html
 
 **Support Email**: info@trairx.com
 **Company**: TrairX Technology O.Ü
@@ -355,7 +355,7 @@ Thank you for reviewing LingoChat!
 **Privacy & Data**:
 - Messages auto-delete after 24 hours
 - Full account deletion available in-app
-- Privacy Policy: https://www.trairx.com/lingochat/privacy
+- Privacy Policy: https://www.lingo-chat.com/privacy.html
 - Alternative deletion: Email info@trairx.com
 
 **Technical Notes**:
