@@ -25,8 +25,11 @@ export async function registerPushToken(
   deviceId?: string
 ) {
   try {
+    const database = await db.getDb();
+    if (!database) throw new Error("Database not available");
+
     // Check if token already exists
-    const existingToken = await db.db
+    const existingToken = await database
       .select()
       .from(pushTokens)
       .where(eq(pushTokens.token, token))
@@ -34,7 +37,7 @@ export async function registerPushToken(
 
     if (existingToken.length > 0) {
       // Update existing token
-      await db.db
+      await database
         .update(pushTokens)
         .set({
           userId,
@@ -46,7 +49,7 @@ export async function registerPushToken(
         .where(eq(pushTokens.token, token));
     } else {
       // Insert new token
-      await db.db.insert(pushTokens).values({
+      await database.insert(pushTokens).values({
         userId,
         token,
         platform,
@@ -67,7 +70,10 @@ export async function registerPushToken(
  */
 export async function removePushToken(token: string) {
   try {
-    await db.db
+    const database = await db.getDb();
+    if (!database) throw new Error("Database not available");
+
+    await database
       .update(pushTokens)
       .set({ isActive: false, updatedAt: new Date() })
       .where(eq(pushTokens.token, token));
@@ -84,7 +90,10 @@ export async function removePushToken(token: string) {
  */
 export async function getUserPushTokens(userId: number) {
   try {
-    const tokens = await db.db
+    const database = await db.getDb();
+    if (!database) throw new Error("Database not available");
+
+    const tokens = await database
       .select()
       .from(pushTokens)
       .where(and(eq(pushTokens.userId, userId), eq(pushTokens.isActive, true)));
