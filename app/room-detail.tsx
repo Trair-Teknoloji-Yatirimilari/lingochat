@@ -11,6 +11,7 @@ import {
   Image,
   Pressable,
   Modal,
+  AppState,
 } from "react-native";
 import { useState, useEffect, useRef } from "react";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -128,14 +129,17 @@ export default function RoomDetailScreen() {
     { enabled: !!roomId && roomId > 0 }
   );
 
-  // Fetch messages
+  // Fetch messages with faster polling
   const {
     data: messagesData,
     isLoading: messagesLoading,
     refetch: refetchMessages,
   } = trpc.groups.getMessages.useQuery(
     { roomId, limit: 100 },
-    { enabled: !!roomId }
+    { 
+      enabled: !!roomId,
+      refetchInterval: 2000, // Poll every 2 seconds for real-time feel
+    }
   );
 
   // Fetch participants
@@ -159,6 +163,45 @@ export default function RoomDetailScreen() {
       }, 100);
     }
   }, [messagesData]);
+
+  // Refetch messages when app comes to foreground
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState === "active") {
+        refetchMessages();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [refetchMessages]);
+
+  // Listen for push notifications and refetch messages
+  useEffect(() => {
+    let notificationListener: any;
+
+    const setupNotificationListener = async () => {
+      const Notifications = await import("expo-notifications");
+      
+      notificationListener = Notifications.addNotificationReceivedListener((notification) => {
+        const data = notification.request.content.data;
+        
+        // If notification is for this room, refetch messages
+        if (data?.type === "group_message" && data?.roomId === roomId) {
+          refetchMessages();
+        }
+      });
+    };
+
+    setupNotificationListener();
+
+    return () => {
+      if (notificationListener) {
+        notificationListener.remove();
+      }
+    };
+  }, [roomId, refetchMessages]);
 
   // Filter messages based on search query
   const filteredMessages = messages.filter((message) => {
@@ -219,6 +262,25 @@ export default function RoomDetailScreen() {
     setReplyToMessage(null); // Clear reply
     setSending(true);
 
+    // Optimistic update - add message immediately to UI
+    const optimisticMessage: Message = {
+      id: Date.now(), // Temporary ID
+      roomId,
+      senderId: user?.id || 0,
+      originalText: tempMessage,
+      originalLanguage: "tr", // Will be corrected by server
+      translatedText: tempMessage,
+      targetLanguage: "tr",
+      createdAt: new Date(),
+      isDeleted: false,
+      senderUsername: user?.name,
+      senderProfilePicture: undefined,
+      media: null,
+    };
+
+    setMessages((prev) => [...prev, optimisticMessage]);
+    scrollViewRef.current?.scrollToEnd({ animated: true });
+
     try {
       const result = await sendMessageMutation.mutateAsync({
         roomId,
@@ -227,6 +289,7 @@ export default function RoomDetailScreen() {
       });
 
       if (result.success) {
+        // Refetch to get real message with translation
         await refetchMessages();
         scrollViewRef.current?.scrollToEnd({ animated: true });
       }
@@ -234,6 +297,8 @@ export default function RoomDetailScreen() {
       console.error("Send message error:", error);
       Alert.alert(t('common.error'), t('messages.sendFailed'));
       setMessageText(tempMessage);
+      // Remove optimistic message on error
+      setMessages((prev) => prev.filter((m) => m.id !== optimisticMessage.id));
     } finally {
       setSending(false);
     }
