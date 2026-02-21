@@ -86,6 +86,18 @@ export default {
     profile: 'Profil',
   },
   
+  // Home
+  home: {
+    featured: 'Öne Çıkanlar',
+    welcome: 'Hoş geldin',
+    user: 'Kullanıcı',
+    whoToTalk: 'Bugün kiminle konuşmak istersin?',
+    aiMeetingSummary: 'AI Toplantı Özeti',
+    autoDeleteMessages: 'Otomatik Mesaj Silme',
+    voiceTranslation: 'Sesli Çeviri',
+    documentAnalysis: 'Belge Analizi',
+  },
+  
   // Chats
   chats: {
     title: 'Sohbetler',

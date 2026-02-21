@@ -38,7 +38,8 @@ export async function initPostHog() {
   }
 
   try {
-    posthogClient = await PostHog.initAsync(apiKey, {
+    // Use new PostHog() constructor instead of initAsync
+    posthogClient = new PostHog(apiKey, {
       host,
       captureApplicationLifecycleEvents: true,
       captureDeepLinks: true,

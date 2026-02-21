@@ -3,17 +3,22 @@ import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/hooks/use-auth";
 
 /**
  * Component to register push notification token with backend
- * This runs after tRPC is initialized
+ * This runs after tRPC is initialized and user is authenticated
  */
 export function PushTokenRegistrar() {
+  const { user } = useAuth();
   const registerTokenMutation = trpc.pushNotifications.registerToken.useMutation();
 
   useEffect(() => {
-    registerPushToken();
-  }, []);
+    // Only register if user is authenticated
+    if (user) {
+      registerPushToken();
+    }
+  }, [user]);
 
   const registerPushToken = async () => {
     if (Platform.OS === "web") {

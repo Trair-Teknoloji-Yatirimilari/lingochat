@@ -86,6 +86,18 @@ export default {
     profile: 'Профиль',
   },
   
+  // Home
+  home: {
+    featured: 'Рекомендуемое',
+    welcome: 'Добро пожаловать',
+    user: 'Пользователь',
+    whoToTalk: 'С кем вы хотите поговорить сегодня?',
+    aiMeetingSummary: 'Резюме встречи с ИИ',
+    autoDeleteMessages: 'Автоудаление сообщений',
+    voiceTranslation: 'Голосовой перевод',
+    documentAnalysis: 'Анализ документов',
+  },
+  
   // Chats
   chats: {
     title: 'Чаты',

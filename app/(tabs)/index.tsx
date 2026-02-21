@@ -224,10 +224,10 @@ export default function HomeScreen() {
             </Animated.View>
             <View className="flex-1">
               <Text className="text-lg font-bold text-foreground mb-0.5">
-                {t('onboarding.welcome')}, {profileQuery.data?.username || "User"}!
+                {t('home.welcome')}, {profileQuery.data?.username || t('home.user')}!
               </Text>
               <Text className="text-xs text-muted">
-                Who would you like to talk to today?
+                {t('home.whoToTalk')}
               </Text>
             </View>
           </View>
@@ -357,20 +357,20 @@ export default function HomeScreen() {
         {/* Compact Features Grid */}
         <View className="mb-3">
           <Text className="text-sm font-bold text-foreground mb-2">
-            Featured
+            {t('home.featured')}
           </Text>
           <View className="gap-2">
             <View className="flex-row gap-2">
               <CompactFeatureCard
                 iconName="sparkles"
                 iconColor="#FF6B6B"
-                title="AI Meeting Summary"
+                title={t('home.aiMeetingSummary')}
                 badge="NEW"
               />
               <CompactFeatureCard
                 iconName="time-outline"
                 iconColor="#4ECDC4"
-                title="Auto-Delete Messages"
+                title={t('home.autoDeleteMessages')}
                 badge="PRO"
               />
             </View>
@@ -378,13 +378,13 @@ export default function HomeScreen() {
               <CompactFeatureCard
                 iconName="mic"
                 iconColor="#95E1D3"
-                title="Voice Translation"
+                title={t('home.voiceTranslation')}
                 badge="SOON"
               />
               <CompactFeatureCard
                 iconName="document-text"
                 iconColor="#F38181"
-                title="Document Analysis"
+                title={t('home.documentAnalysis')}
                 badge="SOON"
               />
             </View>

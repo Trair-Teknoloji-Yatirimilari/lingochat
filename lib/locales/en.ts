@@ -86,6 +86,18 @@ export default {
     profile: 'Profile',
   },
   
+  // Home
+  home: {
+    featured: 'Featured',
+    welcome: 'Welcome',
+    user: 'User',
+    whoToTalk: 'Who would you like to talk to today?',
+    aiMeetingSummary: 'AI Meeting Summary',
+    autoDeleteMessages: 'Auto-Delete Messages',
+    voiceTranslation: 'Voice Translation',
+    documentAnalysis: 'Document Analysis',
+  },
+  
   // Chats
   chats: {
     title: 'Chats',
