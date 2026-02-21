@@ -93,7 +93,7 @@ export function ProfilePictureDisplay({
         )}
       </View>
 
-      {/* Delete Button (if picture exists) */}
+      {/* Delete Button (if picture exists) - Icon only */}
       {showButtons && onDeletePress && profilePictureUrl && (
         <TouchableOpacity
           onPress={onDeletePress}
@@ -101,20 +101,16 @@ export function ProfilePictureDisplay({
           style={{
             marginTop: 12,
             backgroundColor: "rgba(220, 38, 38, 0.1)",
-            paddingHorizontal: 16,
-            paddingVertical: 8,
-            borderRadius: 20,
-            flexDirection: "row",
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            justifyContent: "center",
             alignItems: "center",
-            gap: 6,
             borderWidth: 1,
             borderColor: "rgba(220, 38, 38, 0.2)",
           }}
         >
-          <Ionicons name="trash-outline" size={14} color="#DC2626" />
-          <Text style={{ color: "#DC2626", fontSize: 12, fontWeight: "600" }}>
-            Resmi Kaldır
-          </Text>
+          <Ionicons name="trash-outline" size={18} color="#DC2626" />
         </TouchableOpacity>
       )}
     </View>

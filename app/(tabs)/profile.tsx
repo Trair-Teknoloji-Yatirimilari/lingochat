@@ -227,37 +227,30 @@ export default function ProfileScreen() {
               showButtons={true}
             />
           </View>
-
-          {/* Edit Profile Button - Minimal Design */}
-          <TouchableOpacity
-            onPress={() => router.push("/edit-profile")}
-            style={{
-              marginTop: 20,
-              alignSelf: "center",
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 6,
-              paddingVertical: 8,
-              paddingHorizontal: 16,
-              borderRadius: 20,
-              backgroundColor: "transparent",
-              borderWidth: 1,
-              borderColor: colors.border,
-            }}
-          >
-            <Ionicons name="create-outline" size={16} color={colors.muted} />
-            <Text style={{ color: colors.muted, fontSize: 14, fontWeight: "500" }}>
-              {t('profile.editProfile')}
-            </Text>
-          </TouchableOpacity>
         </View>
 
         <View className="gap-5 p-5 pt-6">
-          {/* Account Info Section */}
+          {/* Account Info Section with Edit Button */}
           <View className="gap-3">
-            <Text className="text-base font-bold text-foreground px-1">
-              {t('profile.accountInfo')}
-            </Text>
+            <View className="flex-row items-center justify-between px-1">
+              <Text className="text-base font-bold text-foreground">
+                {t('profile.accountInfo')}
+              </Text>
+              {/* Edit Profile Button - Icon only */}
+              <TouchableOpacity
+                onPress={() => router.push("/edit-profile")}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: colors.primary + "15",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Ionicons name="create-outline" size={18} color={colors.primary} />
+              </TouchableOpacity>
+            </View>
             <View
               style={{
                 backgroundColor: colors.surface,
