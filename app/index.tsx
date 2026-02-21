@@ -1,58 +1,65 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
-import { View, ActivityIndicator } from "react-native";
+import { View, ActivityIndicator, Text } from "react-native";
 import { useAuth } from "@/hooks/use-auth";
 import { useColors } from "@/hooks/use-colors";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Auth from "@/lib/_core/auth";
 
 export default function IndexScreen() {
   const router = useRouter();
   const { user, loading } = useAuth();
   const colors = useColors();
-  const [checkingOnboarding, setCheckingOnboarding] = useState(true);
+  const [initializing, setInitializing] = useState(true);
 
   useEffect(() => {
-    if (!loading) {
-      checkOnboarding();
-    }
-  }, [loading, user]);
+    initializeApp();
+  }, []);
 
-  const checkOnboarding = async () => {
+  const initializeApp = async () => {
     try {
-      // Onboarding gösterildi mi kontrol et
+      console.log("[Index] Initializing app...");
+      
+      // Check onboarding first
       const onboardingCompleted = await AsyncStorage.getItem("@onboarding_completed");
       console.log("[Index] Onboarding completed:", onboardingCompleted);
-      console.log("[Index] User:", user);
-      console.log("[Index] Loading:", loading);
       
       if (!onboardingCompleted) {
-        // İlk kez açılıyor, onboarding göster
-        console.log("[Index] Redirecting to onboarding...");
+        console.log("[Index] First time user, showing onboarding");
+        setInitializing(false);
         router.replace("/onboarding");
+        return;
+      }
+
+      // Check for cached session
+      const sessionToken = await Auth.getSessionToken();
+      const cachedUser = await Auth.getUserInfo();
+      
+      console.log("[Index] Session check:", {
+        hasToken: !!sessionToken,
+        hasCachedUser: !!cachedUser,
+        userId: cachedUser?.id,
+      });
+
+      if (sessionToken && cachedUser) {
+        // User is logged in, go to main app
+        console.log("[Index] User authenticated, redirecting to tabs");
+        setInitializing(false);
+        router.replace("/(tabs)");
       } else {
-        // Onboarding gösterilmiş, auth kontrolü yap
-        if (!loading) {
-          if (user) {
-            // Kullanıcı giriş yapmış, ana sayfaya yönlendir
-            console.log("[Index] Redirecting to tabs...");
-            router.replace("/(tabs)");
-          } else {
-            // Kullanıcı giriş yapmamış, OTP login'e yönlendir
-            console.log("[Index] Redirecting to otp-login...");
-            router.replace("/otp-login");
-          }
-        }
+        // No session, go to login
+        console.log("[Index] No session, redirecting to login");
+        setInitializing(false);
+        router.replace("/otp-login");
       }
     } catch (error) {
-      console.error("Onboarding check error:", error);
-      // Hata durumunda onboarding'e yönlendir
+      console.error("[Index] Initialization error:", error);
+      setInitializing(false);
       router.replace("/onboarding");
-    } finally {
-      setCheckingOnboarding(false);
     }
   };
 
-  // Loading ekranı
+  // Loading screen
   return (
     <View 
       style={{ 
@@ -63,6 +70,9 @@ export default function IndexScreen() {
       }}
     >
       <ActivityIndicator size="large" color={colors.primary} />
+      <Text style={{ color: colors.muted, marginTop: 16 }}>
+        Loading...
+      </Text>
     </View>
   );
 }
