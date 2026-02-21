@@ -41,6 +41,8 @@ export const userProfiles = pgTable("userProfiles", {
   showReadReceipts: boolean("showReadReceipts").default(true).notNull(),
   showOnlineStatus: boolean("showOnlineStatus").default(true).notNull(),
   showProfilePhoto: boolean("showProfilePhoto").default(true).notNull(),
+  // Who can message me: 'contacts' (default), 'everyone', 'nobody'
+  whoCanMessageMe: varchar("whoCanMessageMe", { length: 20 }).default("contacts").notNull(),
   // Auto-delete messages setting (in seconds, null = disabled)
   // 0 = immediately after read, 21600 = 6h, 43200 = 12h, 86400 = 24h
   autoDeleteDuration: integer("autoDeleteDuration"), // null = disabled

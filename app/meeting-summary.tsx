@@ -11,11 +11,13 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { Ionicons } from "@expo/vector-icons";
 import { useColors } from "@/hooks/use-colors";
+import { useI18n } from "@/hooks/use-i18n";
 import { trpc } from "@/lib/trpc";
 
 export default function MeetingSummaryScreen() {
   const router = useRouter();
   const colors = useColors();
+  const { t } = useI18n();
   const params = useLocalSearchParams();
   
   const summaryId = parseInt(params.summaryId as string);
@@ -29,31 +31,31 @@ export default function MeetingSummaryScreen() {
     if (!summary) return;
 
     const summaryText = `
-# ${summary.summaryData.conclusion || "Toplantı Özeti"}
+# ${summary.summaryData.conclusion || t('meetingSummary.title')}
 
-📅 ${new Date(summary.startTime).toLocaleDateString("tr-TR")} ${new Date(summary.startTime).toLocaleTimeString("tr-TR")} - ${new Date(summary.endTime).toLocaleTimeString("tr-TR")}
-👥 ${summary.participantCount} Katılımcı | 💬 ${summary.messageCount} Mesaj
+📅 ${new Date(summary.startTime).toLocaleDateString()} ${new Date(summary.startTime).toLocaleTimeString()} - ${new Date(summary.endTime).toLocaleTimeString()}
+👥 ${summary.participantCount} ${t('meetingSummary.participants')} | 💬 ${summary.messageCount} ${t('meetingSummary.messages')}
 
-## 📌 Ana Konular
-${summary.summaryData.mainTopics?.map((topic: string, i: number) => `${i + 1}. ${topic}`).join("\n") || "Yok"}
+## 📌 ${t('meetingSummary.mainTopics')}
+${summary.summaryData.mainTopics?.map((topic: string, i: number) => `${i + 1}. ${topic}`).join("\n") || "-"}
 
-## ✅ Alınan Kararlar
-${summary.summaryData.decisions?.map((decision: string, i: number) => `${i + 1}. ${decision}`).join("\n") || "Yok"}
+## ✅ ${t('meetingSummary.decisions')}
+${summary.summaryData.decisions?.map((decision: string, i: number) => `${i + 1}. ${decision}`).join("\n") || "-"}
 
-## 📋 Aksiyon Maddeleri
-${summary.summaryData.actionItems?.map((item: any, i: number) => `${i + 1}. ${item.assignee}: ${item.task}${item.deadline ? ` (${item.deadline})` : ""}`).join("\n") || "Yok"}
+## 📋 ${t('meetingSummary.actionItems')}
+${summary.summaryData.actionItems?.map((item: any, i: number) => `${i + 1}. ${item.assignee}: ${item.task}${item.deadline ? ` (${item.deadline})` : ""}`).join("\n") || "-"}
 
-## 💡 Önemli Noktalar
-${summary.summaryData.highlights?.map((highlight: string, i: number) => `• ${highlight}`).join("\n") || "Yok"}
+## 💡 ${t('meetingSummary.highlights')}
+${summary.summaryData.highlights?.map((highlight: string, i: number) => `• ${highlight}`).join("\n") || "-"}
 
-## 🎯 Sonuç
-${summary.summaryData.conclusion || "Yok"}
+## 🎯 ${t('meetingSummary.conclusion')}
+${summary.summaryData.conclusion || "-"}
     `.trim();
 
     try {
       await Share.share({
         message: summaryText,
-        title: "Toplantı Özeti",
+        title: t('meetingSummary.title'),
       });
     } catch (error) {
       console.error("Share error:", error);
@@ -61,7 +63,7 @@ ${summary.summaryData.conclusion || "Yok"}
   };
 
   const handleCopy = () => {
-    Alert.alert("Kopyalandı", "Özet panoya kopyalandı");
+    Alert.alert(t('meetingSummary.copied'), t('meetingSummary.copiedToClipboard'));
   };
 
   if (isLoading) {
@@ -69,7 +71,7 @@ ${summary.summaryData.conclusion || "Yok"}
       <ScreenContainer>
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text className="text-sm text-muted mt-4">Özet yükleniyor...</Text>
+          <Text className="text-sm text-muted mt-4">{t('meetingSummary.loading')}</Text>
         </View>
       </ScreenContainer>
     );
@@ -81,7 +83,7 @@ ${summary.summaryData.conclusion || "Yok"}
         <View className="flex-1 items-center justify-center p-6">
           <Ionicons name="alert-circle" size={64} color={colors.muted} />
           <Text className="text-lg font-bold text-foreground mt-4">
-            Özet Bulunamadı
+            {t('meetingSummary.notFound')}
           </Text>
           <TouchableOpacity
             onPress={() => router.back()}
@@ -93,7 +95,7 @@ ${summary.summaryData.conclusion || "Yok"}
               marginTop: 16,
             }}
           >
-            <Text className="text-white font-semibold">Geri Dön</Text>
+            <Text className="text-white font-semibold">{t('meetingSummary.goBack')}</Text>
           </TouchableOpacity>
         </View>
       </ScreenContainer>
@@ -134,9 +136,9 @@ ${summary.summaryData.conclusion || "Yok"}
         </TouchableOpacity>
 
         <View className="flex-1">
-          <Text className="text-lg font-bold text-foreground">Toplantı Özeti</Text>
+          <Text className="text-lg font-bold text-foreground">{t('meetingSummary.title')}</Text>
           <Text className="text-xs text-muted">
-            {new Date(summary.createdAt).toLocaleDateString("tr-TR")}
+            {new Date(summary.createdAt).toLocaleDateString()}
           </Text>
         </View>
 
@@ -179,7 +181,7 @@ ${summary.summaryData.conclusion || "Yok"}
             </View>
             <View className="flex-row items-center gap-2">
               <Ionicons name="time" size={16} color={colors.primary} />
-              <Text className="text-sm text-muted">{duration} dakika</Text>
+              <Text className="text-sm text-muted">{duration} {t('meetingSummary.duration')}</Text>
             </View>
           </View>
 
@@ -187,13 +189,13 @@ ${summary.summaryData.conclusion || "Yok"}
             <View className="flex-row items-center gap-2">
               <Ionicons name="people" size={16} color={colors.primary} />
               <Text className="text-sm text-muted">
-                {summary.participantCount} katılımcı
+                {summary.participantCount} {t('meetingSummary.participants')}
               </Text>
             </View>
             <View className="flex-row items-center gap-2">
               <Ionicons name="chatbubbles" size={16} color={colors.primary} />
               <Text className="text-sm text-muted">
-                {summary.messageCount} mesaj
+                {summary.messageCount} {t('meetingSummary.messages')}
               </Text>
             </View>
           </View>
@@ -214,7 +216,7 @@ ${summary.summaryData.conclusion || "Yok"}
             <View className="flex-row items-center gap-2 mb-3">
               <Ionicons name="list" size={20} color={colors.primary} />
               <Text className="text-base font-bold text-foreground">
-                Ana Konular
+                {t('meetingSummary.mainTopics')}
               </Text>
             </View>
             {summaryData.mainTopics.map((topic: string, index: number) => (
@@ -243,7 +245,7 @@ ${summary.summaryData.conclusion || "Yok"}
             <View className="flex-row items-center gap-2 mb-3">
               <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
               <Text className="text-base font-bold text-foreground">
-                Alınan Kararlar
+                {t('meetingSummary.decisions')}
               </Text>
             </View>
             {summaryData.decisions.map((decision: string, index: number) => (
@@ -270,7 +272,7 @@ ${summary.summaryData.conclusion || "Yok"}
             <View className="flex-row items-center gap-2 mb-3">
               <Ionicons name="clipboard" size={20} color={colors.primary} />
               <Text className="text-base font-bold text-foreground">
-                Aksiyon Maddeleri
+                {t('meetingSummary.actionItems')}
               </Text>
             </View>
             {summaryData.actionItems.map((item: any, index: number) => (
@@ -316,7 +318,7 @@ ${summary.summaryData.conclusion || "Yok"}
             <View className="flex-row items-center gap-2 mb-3">
               <Ionicons name="bulb" size={20} color="#f59e0b" />
               <Text className="text-base font-bold text-foreground">
-                Önemli Noktalar
+                {t('meetingSummary.highlights')}
               </Text>
             </View>
             {summaryData.highlights.map((highlight: string, index: number) => (
@@ -343,7 +345,7 @@ ${summary.summaryData.conclusion || "Yok"}
             <View className="flex-row items-center gap-2 mb-3">
               <Ionicons name="stats-chart" size={20} color={colors.primary} />
               <Text className="text-base font-bold text-foreground">
-                Katılımcı İstatistikleri
+                {t('meetingSummary.participantStats')}
               </Text>
             </View>
             {Object.entries(summaryData.participantStats).map(
@@ -382,7 +384,7 @@ ${summary.summaryData.conclusion || "Yok"}
             <View className="flex-row items-center gap-2 mb-3">
               <Ionicons name="language" size={20} color={colors.primary} />
               <Text className="text-base font-bold text-foreground">
-                Dil Dağılımı
+                {t('meetingSummary.languageDistribution')}
               </Text>
             </View>
             {Object.entries(summaryData.languageDistribution).map(
@@ -415,7 +417,7 @@ ${summary.summaryData.conclusion || "Yok"}
           >
             <View className="flex-row items-center gap-2 mb-3">
               <Ionicons name="flag" size={20} color={colors.primary} />
-              <Text className="text-base font-bold text-foreground">Sonuç</Text>
+              <Text className="text-base font-bold text-foreground">{t('meetingSummary.conclusion')}</Text>
             </View>
             <Text className="text-sm text-foreground leading-6">
               {summaryData.conclusion}

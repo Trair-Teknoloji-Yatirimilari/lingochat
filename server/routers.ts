@@ -305,6 +305,21 @@ export const appRouter = router({
 
   // Chat routes
   chat: router({
+    checkContactsOnPlatform: protectedProcedure
+      .input(z.object({
+        phoneNumbers: z.array(z.string()),
+      }))
+      .query(async ({ input }) => {
+        // Check which phone numbers are registered LingoChat users
+        const users = await db.findUsersByPhoneNumbers(input.phoneNumbers);
+        return users.map(user => ({
+          userId: user.userId,
+          phoneNumber: user.phoneNumber,
+          username: user.username,
+          profilePictureUrl: user.profilePictureUrl,
+        }));
+      }),
+
     create: protectedProcedure
       .input(z.object({
         participantIdentifier: z.string(),

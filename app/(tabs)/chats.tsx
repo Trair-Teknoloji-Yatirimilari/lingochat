@@ -15,6 +15,7 @@ import { trpc } from "@/lib/trpc";
 import { ScreenContainer } from "@/components/screen-container";
 import { Ionicons } from "@expo/vector-icons";
 import { useColors } from "@/hooks/use-colors";
+import { useI18n } from "@/hooks/use-i18n";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -30,6 +31,7 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 export default function ChatsScreen() {
   const router = useRouter();
   const colors = useColors();
+  const { t } = useI18n();
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -102,7 +104,7 @@ export default function ChatsScreen() {
       <View className="flex-1 gap-4">
         {/* Header */}
         <View className="flex-row items-center justify-between mb-2">
-          <Text className="text-2xl font-bold text-foreground">Sohbetler</Text>
+          <Text className="text-2xl font-bold text-foreground">{t('tabs.chats')}</Text>
           <Animated.View style={animatedButtonStyle}>
             <TouchableOpacity
               onPress={handleNewChat}
@@ -143,7 +145,7 @@ export default function ChatsScreen() {
         >
           <Ionicons name="search" size={20} color={colors.muted} />
           <TextInput
-            placeholder="Sohbet veya mesaj ara..."
+            placeholder={t('chats.search')}
             placeholderTextColor={colors.muted}
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -165,7 +167,7 @@ export default function ChatsScreen() {
           <View className="flex-1 items-center justify-center gap-3">
             <Ionicons name="chatbubbles-outline" size={48} color={colors.muted} />
             <Text className="text-muted text-center text-base">
-              Henüz sohbet yok
+              {t('chats.noChats')}
             </Text>
             <Animated.View style={animatedButtonStyle}>
               <TouchableOpacity
@@ -198,7 +200,7 @@ export default function ChatsScreen() {
                     fontSize: 16,
                   }}
                 >
-                  Sohbet Başlat
+                  {t('chats.startChat')}
                 </Text>
               </TouchableOpacity>
             </Animated.View>
@@ -240,6 +242,7 @@ function ConversationCard({
   onPress: () => void;
 }) {
   const colors = useColors();
+  const { t } = useI18n();
   const { user } = useAuth();
   const translateX = useSharedValue(0);
   const cardScale = useSharedValue(1);
@@ -304,17 +307,17 @@ function ConversationCard({
     const isMockConversation = conversation.id >= 9001 && conversation.id <= 9006;
     
     Alert.alert(
-      "Sohbeti Sil",
-      "Bu sohbeti silmek istediğinizden emin misiniz?",
+      t('chats.deleteChat'),
+      t('chats.deleteConfirm'),
       [
-        { text: "İptal", style: "cancel" },
+        { text: t('common.cancel'), style: "cancel" },
         { 
-          text: "Sil", 
+          text: t('common.delete'), 
           style: "destructive",
           onPress: async () => {
             if (isMockConversation) {
               // Mock sohbet için sadece UI'dan kaldır
-              Alert.alert("Demo", "Mock sohbetler silinemez (sadece demo amaçlı)");
+              Alert.alert("Demo", "Mock conversations cannot be deleted (demo only)");
               translateX.value = withSpring(0);
               return;
             }
@@ -330,7 +333,7 @@ function ConversationCard({
               // Reset swipe position
               translateX.value = withSpring(0);
             } catch (error) {
-              Alert.alert("Hata", "Sohbet silinemedi");
+              Alert.alert(t('common.error'), "Could not delete conversation");
             }
           },
         },

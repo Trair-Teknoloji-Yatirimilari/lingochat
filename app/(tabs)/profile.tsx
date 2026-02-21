@@ -8,20 +8,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { useColors } from "@/hooks/use-colors";
 import { ProfilePictureDisplay } from "@/components/profile-picture-display";
 import { useProfilePicture } from "@/hooks/use-profile-picture";
-
-const LANGUAGES = [
-  { code: "tr", name: "Türkçe" },
-  { code: "en", name: "İngilizce" },
-  { code: "es", name: "İspanyolca" },
-  { code: "fr", name: "Fransızca" },
-  { code: "de", name: "Almanca" },
-  { code: "ja", name: "Japonca" },
-  { code: "zh", name: "Çince" },
-];
+import { useI18n } from "@/hooks/use-i18n";
+import { LANGUAGES } from "@/lib/i18n";
 
 export default function ProfileScreen() {
   const router = useRouter();
   const colors = useColors();
+  const { t, changeLanguage } = useI18n();
   const { user, logout } = useAuth();
   const [showLanguageSelector, setShowLanguageSelector] = useState(false);
 
@@ -40,11 +33,13 @@ export default function ProfileScreen() {
       setShowLanguageSelector(false);
     },
     onError: () => {
-      Alert.alert("Hata", "Ayarlar güncellenemedi");
+      Alert.alert(t('common.error'), t('errors.serverError'));
     },
   });
 
   const handleChangeLanguage = (languageCode: string) => {
+    // Update both app UI language and user profile
+    changeLanguage(languageCode);
     updateProfileMutation.mutate({ preferredLanguage: languageCode });
   };
 
@@ -64,8 +59,8 @@ export default function ProfileScreen() {
     // Premium users can't enable auto-delete
     if (profileQuery.data?.isPremium && duration !== null) {
       Alert.alert(
-        "Premium Üye",
-        "Premium üyeler için mesajlar otomatik olarak silinmez."
+        t('profile.premiumMember'),
+        t('profile.premiumNoDelete')
       );
       return;
     }
@@ -82,12 +77,12 @@ export default function ProfileScreen() {
 
   const handleDeleteProfilePicture = async () => {
     Alert.alert(
-      "Profil Resmini Sil",
-      "Profil resminizi silmek istediğinizden emin misiniz?",
+      t('profile.deleteProfilePicture'),
+      t('profile.deleteProfilePictureConfirm'),
       [
-        { text: "İptal", style: "cancel" },
+        { text: t('common.cancel'), style: "cancel" },
         {
-          text: "Sil",
+          text: t('common.delete'),
           style: "destructive",
           onPress: async () => {
             const success = await deleteImage();
@@ -102,9 +97,9 @@ export default function ProfileScreen() {
 
   const deleteAccountMutation = trpc.profile.deleteAccount.useMutation({
     onSuccess: () => {
-      Alert.alert("Başarılı", "Hesabınız kalıcı olarak silindi", [
+      Alert.alert(t('profile.accountDeleted'), t('profile.accountDeletedMessage'), [
         {
-          text: "Tamam",
+          text: t('common.done'),
           onPress: () => {
             router.replace("/otp-login");
           },
@@ -112,28 +107,28 @@ export default function ProfileScreen() {
       ]);
     },
     onError: (error) => {
-      Alert.alert("Hata", error.message || "Hesap silinirken bir hata oluştu");
+      Alert.alert(t('common.error'), error.message || t('profile.deleteAccountError'));
     },
   });
 
   const handleDeleteAccount = () => {
     Alert.alert(
-      "Hesabı Sil",
-      "Hesabınızı kalıcı olarak silmek istediğinizden emin misiniz? Bu işlem geri alınamaz ve tüm verileriniz silinecektir.",
+      t('profile.deleteAccountTitle'),
+      t('profile.deleteAccountMessage'),
       [
-        { text: "İptal", style: "cancel" },
+        { text: t('common.cancel'), style: "cancel" },
         {
-          text: "Evet, Sil",
+          text: t('common.yes') + ', ' + t('common.delete'),
           style: "destructive",
           onPress: () => {
             // Double confirmation
             Alert.alert(
-              "Son Onay",
-              "Bu işlem geri alınamaz. Tüm mesajlarınız, profil bilgileriniz ve medya dosyalarınız kalıcı olarak silinecektir. Devam etmek istediğinizden emin misiniz?",
+              t('profile.finalConfirmation'),
+              t('profile.finalConfirmationMessage'),
               [
-                { text: "İptal", style: "cancel" },
+                { text: t('common.cancel'), style: "cancel" },
                 {
-                  text: "Evet, Hesabımı Sil",
+                  text: t('profile.yesDeleteAccount'),
                   style: "destructive",
                   onPress: () => {
                     deleteAccountMutation.mutate();
@@ -148,10 +143,10 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = async () => {
-    Alert.alert("Çıkış Yap", "Çıkış yapmak istediğinizden emin misiniz?", [
-      { text: "İptal", style: "cancel" },
+    Alert.alert(t('profile.logout'), t('profile.logoutConfirm'), [
+      { text: t('common.cancel'), style: "cancel" },
       {
-        text: "Çıkış Yap",
+        text: t('profile.logout'),
         style: "destructive",
         onPress: async () => {
           await logout();
@@ -176,7 +171,7 @@ export default function ProfileScreen() {
   };
 
   const formatDate = (date: Date | string | null | undefined) => {
-    if (!date) return "Bilinmiyor";
+    if (!date) return t('profile.unknown');
     const d = new Date(date);
     return d.toLocaleDateString("tr-TR", {
       year: "numeric",
@@ -191,11 +186,11 @@ export default function ProfileScreen() {
 
   const handleRateApp = () => {
     // Apple App Store link
-    Alert.alert("Uygulamayı Değerlendir", "App Store'da değerlendirme yapabilirsiniz");
+    Alert.alert(t('profile.rateApp'), t('profile.rateAppMessage'));
   };
 
   const handleShareApp = () => {
-    Alert.alert("Uygulamayı Paylaş", "Arkadaşlarınla LingoChat'i paylaş!");
+    Alert.alert(t('profile.shareApp'), t('profile.shareAppMessage'));
   };
 
   return (
@@ -238,7 +233,7 @@ export default function ProfileScreen() {
           {/* Account Info Section */}
           <View className="gap-3">
             <Text className="text-base font-bold text-foreground px-1">
-              Hesap Bilgileri
+              {t('profile.accountInfo')}
             </Text>
             <View
               style={{
@@ -264,9 +259,9 @@ export default function ProfileScreen() {
                     <Ionicons name="person" size={20} color={colors.primary} />
                   </View>
                   <View>
-                    <Text className="text-xs text-muted">Kullanıcı Adı</Text>
+                    <Text className="text-xs text-muted">{t('profile.username')}</Text>
                     <Text className="text-sm font-semibold text-foreground">
-                      {profileQuery.data?.username || "Kullanıcı"}
+                      {profileQuery.data?.username || t('profile.username')}
                     </Text>
                   </View>
                 </View>
@@ -289,7 +284,7 @@ export default function ProfileScreen() {
                     <Ionicons name="call" size={20} color={colors.primary} />
                   </View>
                   <View>
-                    <Text className="text-xs text-muted">Telefon</Text>
+                    <Text className="text-xs text-muted">{t('profile.phone')}</Text>
                     <Text className="text-sm font-semibold text-foreground">
                       {formatPhoneNumber(profileQuery.data?.phoneNumber)}
                     </Text>
@@ -314,7 +309,7 @@ export default function ProfileScreen() {
                     <Ionicons name="finger-print" size={20} color={colors.primary} />
                   </View>
                   <View>
-                    <Text className="text-xs text-muted">Kullanıcı ID</Text>
+                    <Text className="text-xs text-muted">{t('profile.userId')}</Text>
                     <Text className="text-sm font-semibold text-foreground">
                       #{user?.id}
                     </Text>
@@ -327,7 +322,7 @@ export default function ProfileScreen() {
           {/* Language Preference Section */}
           <View className="gap-3">
             <Text className="text-base font-bold text-foreground px-1">
-              Tercihler
+              {t('profile.preferences')}
             </Text>
             <TouchableOpacity
               onPress={() => setShowLanguageSelector(!showLanguageSelector)}
@@ -356,7 +351,7 @@ export default function ProfileScreen() {
                   <Ionicons name="language" size={20} color={colors.primary} />
                 </View>
                 <View className="flex-1">
-                  <Text className="text-xs text-muted mb-1">Dil Tercihi</Text>
+                  <Text className="text-xs text-muted mb-1">{t('profile.languagePreference')}</Text>
                   <Text className="text-sm font-semibold text-foreground">
                     {currentLanguageName}
                   </Text>
@@ -425,7 +420,7 @@ export default function ProfileScreen() {
           {/* Privacy Settings Section */}
           <View className="gap-3">
             <Text className="text-base font-bold text-foreground px-1">
-              Gizlilik Ayarları
+              {t('profile.privacySettings')}
             </Text>
             <View
               style={{
@@ -452,8 +447,8 @@ export default function ProfileScreen() {
                     <Ionicons name="checkmark-done" size={20} color={colors.primary} />
                   </View>
                   <View className="flex-1">
-                    <Text className="text-sm font-medium text-foreground">Okundu Bilgisi</Text>
-                    <Text className="text-xs text-muted">Mesajlarınızın okunduğunu göster</Text>
+                    <Text className="text-sm font-medium text-foreground">{t('profile.readReceipts')}</Text>
+                    <Text className="text-xs text-muted">{t('profile.readReceiptsDescription')}</Text>
                   </View>
                 </View>
                 <TouchableOpacity
@@ -499,8 +494,8 @@ export default function ProfileScreen() {
                     <Ionicons name="radio-button-on" size={20} color={colors.primary} />
                   </View>
                   <View className="flex-1">
-                    <Text className="text-sm font-medium text-foreground">Çevrimiçi Durumu</Text>
-                    <Text className="text-xs text-muted">Son görülme zamanınızı göster</Text>
+                    <Text className="text-sm font-medium text-foreground">{t('profile.onlineStatus')}</Text>
+                    <Text className="text-xs text-muted">{t('profile.onlineStatusDescription')}</Text>
                   </View>
                 </View>
                 <TouchableOpacity
@@ -546,8 +541,8 @@ export default function ProfileScreen() {
                     <Ionicons name="image" size={20} color={colors.primary} />
                   </View>
                   <View className="flex-1">
-                    <Text className="text-sm font-medium text-foreground">Profil Fotoğrafı</Text>
-                    <Text className="text-xs text-muted">Profil resminizi herkese göster</Text>
+                    <Text className="text-sm font-medium text-foreground">{t('profile.profilePhoto')}</Text>
+                    <Text className="text-xs text-muted">{t('profile.profilePhotoDescription')}</Text>
                   </View>
                 </View>
                 <TouchableOpacity
@@ -580,7 +575,7 @@ export default function ProfileScreen() {
           {/* Auto-Delete Messages Section */}
           <View className="gap-3">
             <Text className="text-base font-bold text-foreground px-1">
-              Otomatik Mesaj Silme
+              {t('profile.autoDeleteMessages')}
             </Text>
             <View
               style={{
@@ -605,9 +600,9 @@ export default function ProfileScreen() {
                   <Ionicons name="timer" size={20} color={colors.primary} />
                 </View>
                 <View className="flex-1">
-                  <Text className="text-sm font-medium text-foreground">Mesaj Silme Süresi</Text>
+                  <Text className="text-sm font-medium text-foreground">{t('profile.messageDeletionTime')}</Text>
                   <Text className="text-xs text-muted">
-                    Mesajlarınız otomatik olarak silinsin mi?
+                    {t('profile.messageDeletionDescription')}
                   </Text>
                 </View>
               </View>
@@ -632,7 +627,7 @@ export default function ProfileScreen() {
                       fontWeight: autoDeleteDuration === 21600 ? "600" : "normal",
                     }}
                   >
-                    6 Saat Sonra
+                    {t('profile.after6h')}
                   </Text>
                   {autoDeleteDuration === 21600 && (
                     <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
@@ -658,7 +653,7 @@ export default function ProfileScreen() {
                       fontWeight: autoDeleteDuration === 43200 ? "600" : "normal",
                     }}
                   >
-                    12 Saat Sonra
+                    {t('profile.after12h')}
                   </Text>
                   {autoDeleteDuration === 43200 && (
                     <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
@@ -684,7 +679,7 @@ export default function ProfileScreen() {
                       fontWeight: autoDeleteDuration === 86400 ? "600" : "normal",
                     }}
                   >
-                    24 Saat Sonra
+                    {t('profile.after24h')}
                   </Text>
                   {autoDeleteDuration === 86400 && (
                     <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
@@ -706,7 +701,7 @@ export default function ProfileScreen() {
                 >
                   <Ionicons name="star" size={16} color="#fbbf24" />
                   <Text className="text-xs text-foreground flex-1">
-                    Premium üyesiniz! Mesajlarınız asla silinmez.
+                    {t('profile.premiumInfo')}
                   </Text>
                 </View>
               )}
@@ -716,7 +711,7 @@ export default function ProfileScreen() {
           {/* Support & Help Section */}
           <View className="gap-3">
             <Text className="text-base font-bold text-foreground px-1">
-              Destek ve Yardım
+              {t('profile.supportHelp')}
             </Text>
             <View
               style={{
@@ -751,7 +746,7 @@ export default function ProfileScreen() {
                   </View>
                   <View>
                     <Text className="text-sm font-medium text-foreground">
-                      Destek ile İletişim
+                      {t('profile.contactSupport')}
                     </Text>
                     <Text className="text-xs text-muted">info@trairx.com</Text>
                   </View>
@@ -784,7 +779,7 @@ export default function ProfileScreen() {
                     <Ionicons name="star" size={20} color={colors.primary} />
                   </View>
                   <Text className="text-sm font-medium text-foreground">
-                    Uygulamayı Değerlendir
+                    {t('profile.rateApp')}
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={colors.muted} />
@@ -815,7 +810,7 @@ export default function ProfileScreen() {
                     <Ionicons name="share-social" size={20} color={colors.primary} />
                   </View>
                   <Text className="text-sm font-medium text-foreground">
-                    Uygulamayı Paylaş
+                    {t('profile.shareApp')}
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={colors.muted} />
@@ -826,7 +821,7 @@ export default function ProfileScreen() {
           {/* Legal Section */}
           <View className="gap-3">
             <Text className="text-base font-bold text-foreground px-1">
-              Yasal ve Gizlilik
+              {t('profile.legalPrivacy')}
             </Text>
             <View
               style={{
@@ -860,7 +855,7 @@ export default function ProfileScreen() {
                     <Ionicons name="shield-checkmark" size={20} color={colors.primary} />
                   </View>
                   <Text className="text-sm font-medium text-foreground">
-                    Gizlilik Politikası
+                    {t('profile.privacyPolicy')}
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={colors.muted} />
@@ -891,7 +886,7 @@ export default function ProfileScreen() {
                     <Ionicons name="document-text" size={20} color={colors.primary} />
                   </View>
                   <Text className="text-sm font-medium text-foreground">
-                    Kullanım Şartları
+                    {t('profile.termsOfService')}
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={colors.muted} />
@@ -902,7 +897,7 @@ export default function ProfileScreen() {
           {/* Action Buttons */}
           <View className="gap-3">
             <Text className="text-base font-bold text-foreground px-1">
-              Hesap İşlemleri
+              {t('profile.accountActions')}
             </Text>
             
             {/* Logout Button */}
@@ -922,7 +917,7 @@ export default function ProfileScreen() {
             >
               <Ionicons name="log-out-outline" size={20} color={colors.error || "#EF4444"} />
               <Text style={{ color: colors.error || "#EF4444", fontWeight: "600", fontSize: 15 }}>
-                Çıkış Yap
+                {t('profile.logout')}
               </Text>
             </TouchableOpacity>
 
@@ -944,7 +939,7 @@ export default function ProfileScreen() {
               ) : (
                 <View className="flex-row items-center gap-2">
                   <Ionicons name="trash-outline" size={20} color="#ffffff" />
-                  <Text className="text-white font-bold text-base">Hesabı Kalıcı Olarak Sil</Text>
+                  <Text className="text-white font-bold text-base">{t('profile.deleteAccount')}</Text>
                 </View>
               )}
             </TouchableOpacity>

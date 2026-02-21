@@ -3,10 +3,12 @@ import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { Ionicons } from "@expo/vector-icons";
 import { useColors } from "@/hooks/use-colors";
+import { useI18n } from "@/hooks/use-i18n";
 
 export default function TermsOfServiceScreen() {
   const router = useRouter();
   const colors = useColors();
+  const { t } = useI18n();
 
   return (
     <ScreenContainer>
@@ -38,10 +40,10 @@ export default function TermsOfServiceScreen() {
           </TouchableOpacity>
           <View className="flex-1">
             <Text className="text-lg font-bold text-foreground">
-              Kullanım Şartları
+              {t('legal.terms.title')}
             </Text>
             <Text className="text-xs text-muted">
-              Son Güncelleme: 18 Şubat 2026
+              {t('legal.terms.lastUpdated')}
             </Text>
           </View>
         </View>
@@ -51,180 +53,180 @@ export default function TermsOfServiceScreen() {
           contentContainerStyle={{ padding: 20 }}
           showsVerticalScrollIndicator={false}
         >
-          <Section title="1. Kabul ve Anlaşma">
+          <Section title={t('legal.terms.acceptance.title')}>
             <Text className="text-sm text-foreground leading-6">
-              LingoChat uygulamasını ("Uygulama", "Hizmet") kullanarak, TrairX Technology O.Ü ("Şirket", "biz", "bizim") tarafından belirlenen bu Kullanım Şartlarını kabul etmiş olursunuz.
+              {t('legal.terms.acceptance.content')}
             </Text>
             <InfoBox>
               <Text className="text-xs font-semibold text-foreground mb-1">
-                Şirket Bilgileri:
+                {t('legal.terms.acceptance.companyInfoTitle')}
               </Text>
-              <Text className="text-xs text-muted">Şirket Adı: TrairX Technology O.Ü</Text>
-              <Text className="text-xs text-muted">Kayıt Yeri: Estonya</Text>
-              <Text className="text-xs text-muted">E-posta: info@trairx.com</Text>
+              <Text className="text-xs text-muted">{t('legal.terms.acceptance.companyName')}</Text>
+              <Text className="text-xs text-muted">{t('legal.terms.acceptance.registrationPlace')}</Text>
+              <Text className="text-xs text-muted">{t('legal.terms.acceptance.email')}</Text>
             </InfoBox>
           </Section>
 
-          <Section title="2. Hizmet Tanımı">
+          <Section title={t('legal.terms.serviceDescription.title')}>
             <Text className="text-sm text-foreground leading-6 mb-3">
-              LingoChat, kullanıcıların farklı dillerde mesajlaşmasını sağlayan, yapay zeka destekli otomatik çeviri özellikli bir mesajlaşma uygulamasıdır.
+              {t('legal.terms.serviceDescription.intro')}
             </Text>
-            <SubSection title="2.1 Sunulan Hizmetler">
-              <BulletPoint>Anlık mesajlaşma</BulletPoint>
-              <BulletPoint>Otomatik dil çevirisi</BulletPoint>
-              <BulletPoint>Medya paylaşımı (resim, video, dosya)</BulletPoint>
-              <BulletPoint>Sesli arama</BulletPoint>
-              <BulletPoint>Profil yönetimi</BulletPoint>
+            <SubSection title={t('legal.terms.serviceDescription.servicesOffered')}>
+              <BulletPoint>{t('legal.terms.serviceDescription.instantMessaging')}</BulletPoint>
+              <BulletPoint>{t('legal.terms.serviceDescription.autoTranslation')}</BulletPoint>
+              <BulletPoint>{t('legal.terms.serviceDescription.mediaSharing')}</BulletPoint>
+              <BulletPoint>{t('legal.terms.serviceDescription.voiceCalls')}</BulletPoint>
+              <BulletPoint>{t('legal.terms.serviceDescription.profileManagement')}</BulletPoint>
             </SubSection>
           </Section>
 
-          <Section title="3. Hesap Oluşturma ve Güvenlik">
-            <SubSection title="3.1 Hesap Gereksinimleri">
-              <BulletPoint>En az 13 yaşında olmalısınız</BulletPoint>
-              <BulletPoint>Geçerli bir telefon numarası sağlamalısınız</BulletPoint>
-              <BulletPoint>Doğru ve güncel bilgiler vermelisiniz</BulletPoint>
-              <BulletPoint>Benzersiz bir kullanıcı adı seçmelisiniz</BulletPoint>
+          <Section title={t('legal.terms.accountCreation.title')}>
+            <SubSection title={t('legal.terms.accountCreation.requirements')}>
+              <BulletPoint>{t('legal.terms.accountCreation.ageRequirement')}</BulletPoint>
+              <BulletPoint>{t('legal.terms.accountCreation.phoneRequirement')}</BulletPoint>
+              <BulletPoint>{t('legal.terms.accountCreation.accurateInfo')}</BulletPoint>
+              <BulletPoint>{t('legal.terms.accountCreation.uniqueUsername')}</BulletPoint>
             </SubSection>
 
-            <SubSection title="3.2 Hesap Güvenliği">
-              <BulletPoint>Hesap bilgilerinizin güvenliğinden siz sorumlusunuz</BulletPoint>
-              <BulletPoint>Hesabınızda gerçekleşen tüm aktivitelerden sorumlusunuz</BulletPoint>
-              <BulletPoint>Yetkisiz erişim durumunda derhal bizi bilgilendirmelisiniz</BulletPoint>
-              <BulletPoint>Hesabınızı başkalarıyla paylaşamazsınız</BulletPoint>
+            <SubSection title={t('legal.terms.accountCreation.accountSecurity')}>
+              <BulletPoint>{t('legal.terms.accountCreation.responsibility')}</BulletPoint>
+              <BulletPoint>{t('legal.terms.accountCreation.activityResponsibility')}</BulletPoint>
+              <BulletPoint>{t('legal.terms.accountCreation.unauthorizedAccess')}</BulletPoint>
+              <BulletPoint>{t('legal.terms.accountCreation.noSharing')}</BulletPoint>
             </SubSection>
 
-            <SubSection title="3.3 Hesap Silme">
+            <SubSection title={t('legal.terms.accountCreation.accountDeletion')}>
               <Text className="text-sm text-foreground leading-6 mb-2">
-                Hesabınızı istediğiniz zaman silebilirsiniz:
+                {t('legal.terms.accountCreation.deletionIntro')}
               </Text>
-              <BulletPoint>Profil sayfasından "Hesabı Kalıcı Olarak Sil" butonunu kullanın</BulletPoint>
-              <BulletPoint>İşlem geri alınamaz ve tüm verileriniz kalıcı olarak silinir</BulletPoint>
-              <BulletPoint>Mesajlar, profil bilgileri ve medya dosyaları dahil tüm veriler silinir</BulletPoint>
-              <BulletPoint>Silme işlemi 30 gün içinde tamamlanır</BulletPoint>
+              <BulletPoint>{t('legal.terms.accountCreation.deletionStep1')}</BulletPoint>
+              <BulletPoint>{t('legal.terms.accountCreation.deletionStep2')}</BulletPoint>
+              <BulletPoint>{t('legal.terms.accountCreation.deletionStep3')}</BulletPoint>
+              <BulletPoint>{t('legal.terms.accountCreation.deletionStep4')}</BulletPoint>
             </SubSection>
           </Section>
 
-          <Section title="4. Kabul Edilebilir Kullanım">
+          <Section title={t('legal.terms.acceptableUse.title')}>
             <Text className="text-sm text-foreground leading-6 mb-3">
-              Aşağıdaki davranışlar kesinlikle yasaktır:
+              {t('legal.terms.acceptableUse.intro')}
             </Text>
-            <SubSection title="İçerik İhlalleri">
-              <BulletPoint>Yasadışı, zararlı, tehdit edici içerik paylaşmak</BulletPoint>
-              <BulletPoint>Nefret söylemi, ayrımcılık veya şiddet içeren içerik</BulletPoint>
-              <BulletPoint>Pornografik veya müstehcen içerik</BulletPoint>
-              <BulletPoint>Telif hakkı ihlali yapan içerik</BulletPoint>
+            <SubSection title={t('legal.terms.acceptableUse.contentViolations')}>
+              <BulletPoint>{t('legal.terms.acceptableUse.illegalContent')}</BulletPoint>
+              <BulletPoint>{t('legal.terms.acceptableUse.hateSpeech')}</BulletPoint>
+              <BulletPoint>{t('legal.terms.acceptableUse.pornographicContent')}</BulletPoint>
+              <BulletPoint>{t('legal.terms.acceptableUse.copyrightViolation')}</BulletPoint>
             </SubSection>
 
-            <SubSection title="Güvenlik İhlalleri">
-              <BulletPoint>Uygulamayı tersine mühendislik yapmak</BulletPoint>
-              <BulletPoint>Güvenlik açıklarını istismar etmek</BulletPoint>
-              <BulletPoint>Kötü amaçlı yazılım yaymak</BulletPoint>
-              <BulletPoint>Diğer kullanıcıların hesaplarına yetkisiz erişim</BulletPoint>
+            <SubSection title={t('legal.terms.acceptableUse.securityViolations')}>
+              <BulletPoint>{t('legal.terms.acceptableUse.reverseEngineering')}</BulletPoint>
+              <BulletPoint>{t('legal.terms.acceptableUse.exploitingVulnerabilities')}</BulletPoint>
+              <BulletPoint>{t('legal.terms.acceptableUse.malwareSpreading')}</BulletPoint>
+              <BulletPoint>{t('legal.terms.acceptableUse.unauthorizedAccess')}</BulletPoint>
             </SubSection>
 
-            <SubSection title="Spam ve Kötüye Kullanım">
-              <BulletPoint>Spam veya istenmeyen toplu mesajlar göndermek</BulletPoint>
-              <BulletPoint>Dolandırıcılık veya phishing faaliyetleri</BulletPoint>
-              <BulletPoint>Yanıltıcı veya sahte bilgiler yaymak</BulletPoint>
-              <BulletPoint>Otomatik botlar veya scriptler kullanmak</BulletPoint>
-            </SubSection>
-          </Section>
-
-          <Section title="5. İçerik ve Fikri Mülkiyet">
-            <SubSection title="5.1 Kullanıcı İçeriği">
-              <BulletPoint>Paylaştığınız içeriğin sorumluluğu size aittir</BulletPoint>
-              <BulletPoint>İçeriğiniz için gerekli tüm haklara sahip olduğunuzu garanti edersiniz</BulletPoint>
-              <BulletPoint>Yasadışı veya ihlal edici içerik paylaşamazsınız</BulletPoint>
-            </SubSection>
-
-            <SubSection title="5.2 Şirket Fikri Mülkiyeti">
-              <BulletPoint>Uygulama ve tüm içeriği Şirketin mülkiyetindedir</BulletPoint>
-              <BulletPoint>"LingoChat" markası Şirketin tescilli markasıdır</BulletPoint>
-              <BulletPoint>İzinsiz kullanım, kopyalama veya dağıtım yasaktır</BulletPoint>
+            <SubSection title={t('legal.terms.acceptableUse.spamAbuse')}>
+              <BulletPoint>{t('legal.terms.acceptableUse.spamMessages')}</BulletPoint>
+              <BulletPoint>{t('legal.terms.acceptableUse.fraudActivities')}</BulletPoint>
+              <BulletPoint>{t('legal.terms.acceptableUse.misleadingInfo')}</BulletPoint>
+              <BulletPoint>{t('legal.terms.acceptableUse.automatedBots')}</BulletPoint>
             </SubSection>
           </Section>
 
-          <Section title="6. Gizlilik">
+          <Section title={t('legal.terms.intellectualProperty.title')}>
+            <SubSection title={t('legal.terms.intellectualProperty.userContent')}>
+              <BulletPoint>{t('legal.terms.intellectualProperty.contentResponsibility')}</BulletPoint>
+              <BulletPoint>{t('legal.terms.intellectualProperty.rightsGuarantee')}</BulletPoint>
+              <BulletPoint>{t('legal.terms.intellectualProperty.noIllegalContent')}</BulletPoint>
+            </SubSection>
+
+            <SubSection title={t('legal.terms.intellectualProperty.companyIP')}>
+              <BulletPoint>{t('legal.terms.intellectualProperty.appOwnership')}</BulletPoint>
+              <BulletPoint>{t('legal.terms.intellectualProperty.trademark')}</BulletPoint>
+              <BulletPoint>{t('legal.terms.intellectualProperty.noUnauthorizedUse')}</BulletPoint>
+            </SubSection>
+          </Section>
+
+          <Section title={t('legal.terms.privacy.title')}>
             <Text className="text-sm text-foreground leading-6">
-              Kişisel bilgilerinizin toplanması, kullanılması ve korunması Gizlilik Politikamızda açıklanmıştır. Uygulamayı kullanarak Gizlilik Politikamızı da kabul etmiş olursunuz.
+              {t('legal.terms.privacy.content')}
             </Text>
           </Section>
 
-          <Section title="7. Sorumluluk Reddi">
-            <SubSection title="7.1 'Olduğu Gibi' Hizmet">
+          <Section title={t('legal.terms.disclaimer.title')}>
+            <SubSection title={t('legal.terms.disclaimer.asIs')}>
               <Text className="text-sm text-foreground leading-6 mb-2">
-                Hizmet "olduğu gibi" ve "mevcut olduğu şekilde" sağlanır. Hiçbir garanti vermeyiz:
+                {t('legal.terms.disclaimer.intro')}
               </Text>
-              <BulletPoint>Hizmetin kesintisiz veya hatasız olacağına dair</BulletPoint>
-              <BulletPoint>Çeviri doğruluğuna dair</BulletPoint>
-              <BulletPoint>Güvenlik ihlallerine karşı mutlak koruma</BulletPoint>
+              <BulletPoint>{t('legal.terms.disclaimer.noInterruption')}</BulletPoint>
+              <BulletPoint>{t('legal.terms.disclaimer.noTranslationAccuracy')}</BulletPoint>
+              <BulletPoint>{t('legal.terms.disclaimer.noAbsoluteSecurity')}</BulletPoint>
             </SubSection>
 
-            <SubSection title="7.2 Çeviri Hizmeti">
-              <BulletPoint>Otomatik çeviriler %100 doğru olmayabilir</BulletPoint>
-              <BulletPoint>Önemli iletişimlerde profesyonel çeviri kullanmanızı öneririz</BulletPoint>
-              <BulletPoint>Çeviri hatalarından kaynaklanan sorunlardan sorumlu değiliz</BulletPoint>
+            <SubSection title={t('legal.terms.disclaimer.translationService')}>
+              <BulletPoint>{t('legal.terms.disclaimer.notPerfect')}</BulletPoint>
+              <BulletPoint>{t('legal.terms.disclaimer.professionalRecommendation')}</BulletPoint>
+              <BulletPoint>{t('legal.terms.disclaimer.noLiability')}</BulletPoint>
             </SubSection>
           </Section>
 
-          <Section title="8. Sorumluluk Sınırlaması">
+          <Section title={t('legal.terms.limitationLiability.title')}>
             <Text className="text-sm text-foreground leading-6 mb-2">
-              Yasaların izin verdiği ölçüde:
+              {t('legal.terms.limitationLiability.intro')}
             </Text>
-            <BulletPoint>Dolaylı, arızi veya sonuç olarak ortaya çıkan zararlardan sorumlu değiliz</BulletPoint>
-            <BulletPoint>Veri kaybı, kar kaybı veya iş kaybından sorumlu değiliz</BulletPoint>
-            <BulletPoint>Toplam sorumluluğumuz son 12 ayda ödediğiniz ücretlerle sınırlıdır</BulletPoint>
+            <BulletPoint>{t('legal.terms.limitationLiability.noIndirectDamages')}</BulletPoint>
+            <BulletPoint>{t('legal.terms.limitationLiability.noDataLoss')}</BulletPoint>
+            <BulletPoint>{t('legal.terms.limitationLiability.limitedLiability')}</BulletPoint>
           </Section>
 
-          <Section title="9. Uyuşmazlık Çözümü">
-            <SubSection title="9.1 Uygulanacak Hukuk">
+          <Section title={t('legal.terms.disputeResolution.title')}>
+            <SubSection title={t('legal.terms.disputeResolution.applicableLaw')}>
               <Text className="text-sm text-foreground leading-6">
-                Bu Kullanım Şartları Estonya yasalarına tabidir.
+                {t('legal.terms.disputeResolution.lawContent')}
               </Text>
             </SubSection>
 
-            <SubSection title="9.2 Yargı Yetkisi">
+            <SubSection title={t('legal.terms.disputeResolution.jurisdiction')}>
               <Text className="text-sm text-foreground leading-6">
-                Uyuşmazlıklar Estonya mahkemelerinde çözülecektir.
+                {t('legal.terms.disputeResolution.jurisdictionContent')}
               </Text>
             </SubSection>
 
-            <SubSection title="9.3 Dostane Çözüm">
+            <SubSection title={t('legal.terms.disputeResolution.amicableResolution')}>
               <Text className="text-sm text-foreground leading-6">
-                Herhangi bir uyuşmazlık durumunda, önce info@trairx.com adresi üzerinden bizimle iletişime geçmenizi rica ederiz.
-              </Text>
-            </SubSection>
-          </Section>
-
-          <Section title="10. Apple App Store Özel Hükümler">
-            <SubSection title="10.1 Apple ile İlişki">
-              <BulletPoint>Bu sözleşme sizinle TrairX Technology O.Ü arasındadır, Apple ile değil</BulletPoint>
-              <BulletPoint>Apple, Uygulamadan veya içeriğinden sorumlu değildir</BulletPoint>
-              <BulletPoint>Apple'ın Uygulamaya ilişkin herhangi bir garanti yükümlülüğü yoktur</BulletPoint>
-            </SubSection>
-
-            <SubSection title="10.2 Bakım ve Destek">
-              <BulletPoint>Bakım ve destek hizmetlerinden TrairX Technology O.Ü sorumludur</BulletPoint>
-              <BulletPoint>Apple'ın bakım veya destek yükümlülüğü yoktur</BulletPoint>
-            </SubSection>
-
-            <SubSection title="10.3 Üçüncü Taraf Lehtar">
-              <Text className="text-sm text-foreground leading-6">
-                Apple, bu Kullanım Şartlarının üçüncü taraf lehtarıdır ve şartları kabul ettiğinizde Apple'ın bu şartları size karşı uygulama hakkı vardır.
+                {t('legal.terms.disputeResolution.amicableContent')}
               </Text>
             </SubSection>
           </Section>
 
-          <Section title="11. İletişim">
+          <Section title={t('legal.terms.appleProvisions.title')}>
+            <SubSection title={t('legal.terms.appleProvisions.relationship')}>
+              <BulletPoint>{t('legal.terms.appleProvisions.agreementParties')}</BulletPoint>
+              <BulletPoint>{t('legal.terms.appleProvisions.appleNotResponsible')}</BulletPoint>
+              <BulletPoint>{t('legal.terms.appleProvisions.noAppleWarranty')}</BulletPoint>
+            </SubSection>
+
+            <SubSection title={t('legal.terms.appleProvisions.maintenanceSupport')}>
+              <BulletPoint>{t('legal.terms.appleProvisions.companyResponsible')}</BulletPoint>
+              <BulletPoint>{t('legal.terms.appleProvisions.noAppleObligation')}</BulletPoint>
+            </SubSection>
+
+            <SubSection title={t('legal.terms.appleProvisions.thirdPartyBeneficiary')}>
+              <Text className="text-sm text-foreground leading-6">
+                {t('legal.terms.appleProvisions.beneficiaryContent')}
+              </Text>
+            </SubSection>
+          </Section>
+
+          <Section title={t('legal.terms.contact.title')}>
             <Text className="text-sm text-foreground leading-6 mb-3">
-              Sorularınız veya endişeleriniz için:
+              {t('legal.terms.contact.intro')}
             </Text>
             <InfoBox>
               <Text className="text-xs font-semibold text-foreground mb-1">
-                TrairX Technology O.Ü
+                {t('legal.terms.contact.company')}
               </Text>
-              <Text className="text-xs text-muted">E-posta: info@trairx.com</Text>
-              <Text className="text-xs text-muted">Uygulama: LingoChat</Text>
+              <Text className="text-xs text-muted">{t('legal.terms.contact.email')}</Text>
+              <Text className="text-xs text-muted">{t('legal.terms.contact.app')}</Text>
             </InfoBox>
           </Section>
 
@@ -238,10 +240,10 @@ export default function TermsOfServiceScreen() {
             }}
           >
             <Text className="text-xs text-muted text-center leading-5">
-              Bu Kullanım Şartları, Apple App Store ve Google Play Store gerekliliklerine uygun olarak hazırlanmıştır.
+              {t('legal.terms.footer')}
             </Text>
             <Text className="text-xs text-muted text-center mt-2">
-              Son Güncelleme: 18 Şubat 2026 • Versiyon: 1.0
+              {t('legal.terms.footerVersion')}
             </Text>
           </View>
         </ScrollView>

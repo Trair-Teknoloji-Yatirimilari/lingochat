@@ -3,10 +3,12 @@ import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { Ionicons } from "@expo/vector-icons";
 import { useColors } from "@/hooks/use-colors";
+import { useI18n } from "@/hooks/use-i18n";
 
 export default function PrivacyPolicyScreen() {
   const router = useRouter();
   const colors = useColors();
+  const { t } = useI18n();
 
   return (
     <ScreenContainer>
@@ -38,10 +40,10 @@ export default function PrivacyPolicyScreen() {
           </TouchableOpacity>
           <View className="flex-1">
             <Text className="text-lg font-bold text-foreground">
-              Gizlilik Politikası
+              {t('legal.privacy.title')}
             </Text>
             <Text className="text-xs text-muted">
-              Son Güncelleme: 18 Şubat 2026
+              {t('legal.privacy.lastUpdated')}
             </Text>
           </View>
         </View>
@@ -51,128 +53,128 @@ export default function PrivacyPolicyScreen() {
           contentContainerStyle={{ padding: 20 }}
           showsVerticalScrollIndicator={false}
         >
-          <Section title="1. Giriş">
+          <Section title={t('legal.privacy.introduction.title')}>
             <Text className="text-sm text-foreground leading-6">
-              LingoChat uygulaması ("Uygulama"), TrairX Technology O.Ü ("Şirket", "biz", "bizim") tarafından işletilmektedir. Şirket merkezi Estonya'da bulunmaktadır.
+              {t('legal.privacy.introduction.content1')}
             </Text>
             <Text className="text-sm text-foreground leading-6 mt-3">
-              Bu Gizlilik Politikası, Uygulamamızı kullandığınızda kişisel bilgilerinizin nasıl toplandığını, kullanıldığını, saklandığını ve korunduğunu açıklamaktadır.
+              {t('legal.privacy.introduction.content2')}
             </Text>
             <InfoBox>
               <Text className="text-xs font-semibold text-foreground mb-1">
-                İletişim Bilgileri:
+                {t('legal.privacy.introduction.contactTitle')}
               </Text>
-              <Text className="text-xs text-muted">Şirket: TrairX Technology O.Ü</Text>
-              <Text className="text-xs text-muted">E-posta: info@trairx.com</Text>
-              <Text className="text-xs text-muted">Adres: Estonya</Text>
+              <Text className="text-xs text-muted">{t('legal.privacy.introduction.company')}</Text>
+              <Text className="text-xs text-muted">{t('legal.privacy.introduction.email')}</Text>
+              <Text className="text-xs text-muted">{t('legal.privacy.introduction.address')}</Text>
             </InfoBox>
           </Section>
 
-          <Section title="2. Topladığımız Bilgiler">
-            <SubSection title="2.1 Kullanıcı Tarafından Sağlanan Bilgiler">
-              <BulletPoint>Telefon Numarası: Hesap oluşturma ve kimlik doğrulama için</BulletPoint>
-              <BulletPoint>Kullanıcı Adı: Profil oluşturma için</BulletPoint>
-              <BulletPoint>Profil Fotoğrafı: İsteğe bağlı, profil özelleştirme için</BulletPoint>
-              <BulletPoint>Dil Tercihi: Uygulama deneyimini kişiselleştirmek için</BulletPoint>
+          <Section title={t('legal.privacy.dataCollection.title')}>
+            <SubSection title={t('legal.privacy.dataCollection.userProvided')}>
+              <BulletPoint>{t('legal.privacy.dataCollection.phoneNumber')}</BulletPoint>
+              <BulletPoint>{t('legal.privacy.dataCollection.username')}</BulletPoint>
+              <BulletPoint>{t('legal.privacy.dataCollection.profilePicture')}</BulletPoint>
+              <BulletPoint>{t('legal.privacy.dataCollection.languagePreference')}</BulletPoint>
             </SubSection>
 
-            <SubSection title="2.2 Otomatik Olarak Toplanan Bilgiler">
-              <BulletPoint>Cihaz Bilgileri: Cihaz modeli, işletim sistemi versiyonu</BulletPoint>
-              <BulletPoint>Kullanım Verileri: Uygulama kullanım istatistikleri</BulletPoint>
-              <BulletPoint>Log Verileri: Hata raporları ve performans verileri</BulletPoint>
+            <SubSection title={t('legal.privacy.dataCollection.autoCollected')}>
+              <BulletPoint>{t('legal.privacy.dataCollection.deviceInfo')}</BulletPoint>
+              <BulletPoint>{t('legal.privacy.dataCollection.usageData')}</BulletPoint>
+              <BulletPoint>{t('legal.privacy.dataCollection.logData')}</BulletPoint>
             </SubSection>
 
-            <SubSection title="2.3 Mesajlaşma Verileri">
-              <BulletPoint>Mesaj İçeriği: Çeviri hizmeti sağlamak için geçici olarak işlenir</BulletPoint>
-              <BulletPoint>Mesaj Meta Verileri: Gönderim zamanı, alıcı bilgisi</BulletPoint>
-              <BulletPoint>Medya Dosyaları: Paylaşılan resim, video ve dosyalar</BulletPoint>
+            <SubSection title={t('legal.privacy.dataCollection.messagingData')}>
+              <BulletPoint>{t('legal.privacy.dataCollection.messageContent')}</BulletPoint>
+              <BulletPoint>{t('legal.privacy.dataCollection.messageMetadata')}</BulletPoint>
+              <BulletPoint>{t('legal.privacy.dataCollection.mediaFiles')}</BulletPoint>
             </SubSection>
           </Section>
 
-          <Section title="3. Bilgilerin Kullanımı">
+          <Section title={t('legal.privacy.dataUsage.title')}>
             <Text className="text-sm text-foreground leading-6 mb-3">
-              Topladığımız bilgileri şu amaçlarla kullanırız:
+              {t('legal.privacy.dataUsage.intro')}
             </Text>
-            <BulletPoint>Hizmet Sağlama: Mesajlaşma ve çeviri hizmetlerini sunmak</BulletPoint>
-            <BulletPoint>Kimlik Doğrulama: Hesap güvenliğini sağlamak</BulletPoint>
-            <BulletPoint>Kişiselleştirme: Dil tercihlerinize göre deneyim sunmak</BulletPoint>
-            <BulletPoint>İyileştirme: Uygulama performansını ve özelliklerini geliştirmek</BulletPoint>
-            <BulletPoint>Destek: Teknik destek ve müşteri hizmetleri sağlamak</BulletPoint>
-            <BulletPoint>Güvenlik: Dolandırıcılık ve kötüye kullanımı önlemek</BulletPoint>
+            <BulletPoint>{t('legal.privacy.dataUsage.serviceProvision')}</BulletPoint>
+            <BulletPoint>{t('legal.privacy.dataUsage.authentication')}</BulletPoint>
+            <BulletPoint>{t('legal.privacy.dataUsage.personalization')}</BulletPoint>
+            <BulletPoint>{t('legal.privacy.dataUsage.improvement')}</BulletPoint>
+            <BulletPoint>{t('legal.privacy.dataUsage.support')}</BulletPoint>
+            <BulletPoint>{t('legal.privacy.dataUsage.security')}</BulletPoint>
           </Section>
 
-          <Section title="4. Bilgi Paylaşımı">
+          <Section title={t('legal.privacy.dataSharing.title')}>
             <Text className="text-sm text-foreground leading-6 mb-3">
-              Kişisel bilgilerinizi aşağıdaki durumlar dışında üçüncü taraflarla paylaşmayız:
+              {t('legal.privacy.dataSharing.intro')}
             </Text>
 
-            <SubSection title="4.1 Hizmet Sağlayıcılar">
-              <BulletPoint>Çeviri Hizmetleri: OpenAI API (mesaj çevirisi için)</BulletPoint>
-              <BulletPoint>Bulut Depolama: Profil fotoğrafları ve medya dosyaları için</BulletPoint>
-              <BulletPoint>Altyapı Sağlayıcıları: Sunucu ve veritabanı hizmetleri</BulletPoint>
+            <SubSection title={t('legal.privacy.dataSharing.serviceProviders')}>
+              <BulletPoint>{t('legal.privacy.dataSharing.translationServices')}</BulletPoint>
+              <BulletPoint>{t('legal.privacy.dataSharing.cloudStorage')}</BulletPoint>
+              <BulletPoint>{t('legal.privacy.dataSharing.infrastructureProviders')}</BulletPoint>
             </SubSection>
 
-            <SubSection title="4.2 Yasal Gereklilikler">
-              <BulletPoint>Yasal yükümlülüklere uymak için</BulletPoint>
-              <BulletPoint>Haklarımızı, mülkiyetimizi veya güvenliğimizi korumak için</BulletPoint>
-              <BulletPoint>Acil durumlarda kamu güvenliğini sağlamak için</BulletPoint>
+            <SubSection title={t('legal.privacy.dataSharing.legalRequirements')}>
+              <BulletPoint>{t('legal.privacy.dataSharing.legalCompliance')}</BulletPoint>
+              <BulletPoint>{t('legal.privacy.dataSharing.rightsProtection')}</BulletPoint>
+              <BulletPoint>{t('legal.privacy.dataSharing.publicSafety')}</BulletPoint>
             </SubSection>
           </Section>
 
-          <Section title="5. Veri Saklama">
-            <BulletPoint>Aktif Hesaplar: Hesabınız aktif olduğu sürece verilerinizi saklarız</BulletPoint>
-            <BulletPoint>Mesajlar: Silinen mesajlar kalıcı olarak kaldırılır</BulletPoint>
-            <BulletPoint>Hesap Silme: Hesabınızı sildiğinizde tüm kişisel verileriniz 30 gün içinde silinir</BulletPoint>
-            <BulletPoint>Yasal Saklama: Yasal gerekliliklere göre bazı veriler daha uzun süre saklanabilir</BulletPoint>
+          <Section title={t('legal.privacy.dataRetention.title')}>
+            <BulletPoint>{t('legal.privacy.dataRetention.activeAccounts')}</BulletPoint>
+            <BulletPoint>{t('legal.privacy.dataRetention.messages')}</BulletPoint>
+            <BulletPoint>{t('legal.privacy.dataRetention.accountDeletion')}</BulletPoint>
+            <BulletPoint>{t('legal.privacy.dataRetention.legalRetention')}</BulletPoint>
           </Section>
 
-          <Section title="6. Veri Güvenliği">
+          <Section title={t('legal.privacy.dataSecurity.title')}>
             <Text className="text-sm text-foreground leading-6 mb-3">
-              Bilgilerinizi korumak için şu önlemleri alırız:
+              {t('legal.privacy.dataSecurity.intro')}
             </Text>
-            <BulletPoint>Şifreleme: Veri iletimi ve depolama sırasında şifreleme</BulletPoint>
-            <BulletPoint>Erişim Kontrolü: Sınırlı personel erişimi</BulletPoint>
-            <BulletPoint>Güvenlik Testleri: Düzenli güvenlik denetimleri</BulletPoint>
-            <BulletPoint>Güvenli Sunucular: Endüstri standardı güvenlik protokolleri</BulletPoint>
+            <BulletPoint>{t('legal.privacy.dataSecurity.encryption')}</BulletPoint>
+            <BulletPoint>{t('legal.privacy.dataSecurity.accessControl')}</BulletPoint>
+            <BulletPoint>{t('legal.privacy.dataSecurity.securityTests')}</BulletPoint>
+            <BulletPoint>{t('legal.privacy.dataSecurity.secureServers')}</BulletPoint>
           </Section>
 
-          <Section title="7. Çocukların Gizliliği">
+          <Section title={t('legal.privacy.childrenPrivacy.title')}>
             <Text className="text-sm text-foreground leading-6">
-              Uygulamamız 13 yaşın altındaki çocuklara yönelik değildir. Bilerek 13 yaşın altındaki çocuklardan kişisel bilgi toplamayız. Eğer 13 yaşın altında bir çocuğun bilgilerini topladığımızı fark edersek, bu bilgileri derhal sileriz.
+              {t('legal.privacy.childrenPrivacy.content')}
             </Text>
           </Section>
 
-          <Section title="8. Haklarınız">
+          <Section title={t('legal.privacy.yourRights.title')}>
             <Text className="text-sm text-foreground leading-6 mb-3">
-              GDPR ve diğer veri koruma yasaları kapsamında aşağıdaki haklara sahipsiniz:
+              {t('legal.privacy.yourRights.intro')}
             </Text>
-            <BulletPoint>Erişim Hakkı: Kişisel verilerinize erişim talep edebilirsiniz</BulletPoint>
-            <BulletPoint>Düzeltme Hakkı: Yanlış veya eksik bilgileri düzeltebilirsiniz</BulletPoint>
-            <BulletPoint>Silme Hakkı: Verilerinizin silinmesini talep edebilirsiniz</BulletPoint>
-            <BulletPoint>İtiraz Hakkı: Veri işlemeye itiraz edebilirsiniz</BulletPoint>
-            <BulletPoint>Taşınabilirlik Hakkı: Verilerinizi yapılandırılmış formatta alabilirsiniz</BulletPoint>
-            <BulletPoint>Şikayet Hakkı: Veri koruma otoritesine şikayette bulunabilirsiniz</BulletPoint>
+            <BulletPoint>{t('legal.privacy.yourRights.accessRight')}</BulletPoint>
+            <BulletPoint>{t('legal.privacy.yourRights.rectificationRight')}</BulletPoint>
+            <BulletPoint>{t('legal.privacy.yourRights.erasureRight')}</BulletPoint>
+            <BulletPoint>{t('legal.privacy.yourRights.objectionRight')}</BulletPoint>
+            <BulletPoint>{t('legal.privacy.yourRights.portabilityRight')}</BulletPoint>
+            <BulletPoint>{t('legal.privacy.yourRights.complaintRight')}</BulletPoint>
             
             <InfoBox>
               <Text className="text-xs font-semibold text-foreground mb-2">
-                Hesabınızı Silme
+                {t('legal.privacy.yourRights.deleteAccountTitle')}
               </Text>
               <Text className="text-xs text-muted leading-5">
-                Hesabınızı ve tüm verilerinizi kalıcı olarak silmek için Profil sayfasından "Hesabı Kalıcı Olarak Sil" butonunu kullanabilirsiniz. Bu işlem geri alınamaz ve tüm verileriniz 30 gün içinde kalıcı olarak silinir.
+                {t('legal.privacy.yourRights.deleteAccountDescription')}
               </Text>
             </InfoBox>
           </Section>
 
-          <Section title="9. İletişim">
+          <Section title={t('legal.privacy.contact.title')}>
             <Text className="text-sm text-foreground leading-6 mb-3">
-              Gizlilik Politikamız hakkında sorularınız veya endişeleriniz varsa bizimle iletişime geçin:
+              {t('legal.privacy.contact.intro')}
             </Text>
             <InfoBox>
               <Text className="text-xs font-semibold text-foreground mb-1">
-                TrairX Technology O.Ü
+                {t('legal.privacy.contact.company')}
               </Text>
-              <Text className="text-xs text-muted">E-posta: info@trairx.com</Text>
-              <Text className="text-xs text-muted">Web: LingoChat Uygulaması</Text>
+              <Text className="text-xs text-muted">{t('legal.privacy.contact.email')}</Text>
+              <Text className="text-xs text-muted">{t('legal.privacy.contact.web')}</Text>
             </InfoBox>
           </Section>
 
@@ -186,7 +188,7 @@ export default function PrivacyPolicyScreen() {
             }}
           >
             <Text className="text-xs text-muted text-center leading-5">
-              Bu Gizlilik Politikası, Apple App Store ve Google Play Store gerekliliklerine uygun olarak hazırlanmıştır ve GDPR, KVKK ve diğer veri koruma düzenlemelerine uygundur.
+              {t('legal.privacy.footer')}
             </Text>
           </View>
         </ScrollView>

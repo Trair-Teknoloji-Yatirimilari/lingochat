@@ -19,6 +19,7 @@ import { trpc } from "@/lib/trpc";
 import { ScreenContainer } from "@/components/screen-container";
 import { Ionicons } from "@expo/vector-icons";
 import { useColors } from "@/hooks/use-colors";
+import { useI18n } from "@/hooks/use-i18n";
 import { useNotifications } from "@/hooks/use-notifications";
 import { useMessageDelete } from "@/hooks/use-message-delete";
 import { MessageDeleteDialog } from "@/components/message-delete-dialog";
@@ -34,6 +35,7 @@ import type { DocumentPickerAsset } from "expo-document-picker";
 export default function ChatDetailScreen() {
   const router = useRouter();
   const colors = useColors();
+  const { t } = useI18n();
   const { user } = useAuth();
   const { conversationId } = useLocalSearchParams<{ conversationId: string }>();
   const [messageText, setMessageText] = useState("");
@@ -116,10 +118,10 @@ export default function ChatDetailScreen() {
     onSuccess: () => {
       messagesQuery.refetch();
       setMessageText("");
-      sendLocalNotification("Message Sent", "Your message was delivered");
+      sendLocalNotification(t('common.success'), t('messages.mediaSent'));
     },
     onError: (error) => {
-      Alert.alert("Error", "Failed to send message");
+      Alert.alert(t('common.error'), t('messages.sendFailed'));
       console.error(error);
     },
   });
@@ -153,7 +155,7 @@ export default function ChatDetailScreen() {
       // WebSocket ile diğer kullanıcılara bildir
       sendMessageDeleted(selectedMessageId);
     } else {
-      Alert.alert("Hata", "Mesaj silinemedi");
+      Alert.alert(t('common.error'), t('messages.deleteFailed'));
     }
   };
 
@@ -184,7 +186,7 @@ export default function ChatDetailScreen() {
       });
     } catch (error) {
       console.error("Error converting image to base64:", error);
-      Alert.alert("Hata", "Fotoğraf yüklenemedi");
+      Alert.alert(t('common.error'), t('messages.photoUploadFailed'));
     }
   };
 
@@ -221,13 +223,13 @@ export default function ChatDetailScreen() {
         setSelectedMedia(null);
         setMessageText("");
         await messagesQuery.refetch();
-        sendLocalNotification("Başarılı", "Medya gönderildi");
+        sendLocalNotification(t('common.success'), t('messages.mediaSent'));
       } else {
-        Alert.alert("Hata", "Medya gönderilemedi");
+        Alert.alert(t('common.error'), t('messages.mediaSendFailed'));
       }
     } catch (error) {
       console.error("Send media error:", error);
-      Alert.alert("Hata", "Medya gönderilemedi");
+      Alert.alert(t('common.error'), t('messages.mediaSendFailed'));
     } finally {
       setSending(false);
     }
@@ -346,7 +348,7 @@ export default function ChatDetailScreen() {
 
           {/* Voice Call Button */}
           <TouchableOpacity
-            onPress={() => Alert.alert("Sesli Arama", "Sesli arama özelliği yakında eklenecek")}
+            onPress={() => Alert.alert(t('messages.voiceCall'), t('messages.voiceCallSoon'))}
             style={{
               backgroundColor: colors.surface,
               borderRadius: 50,
@@ -417,23 +419,23 @@ export default function ChatDetailScreen() {
                   <TouchableOpacity
                     onPress={() => {
                       Alert.alert(
-                        "Kullanıcıyı Engelle",
-                        "Bu kullanıcıyı engellemek istediğinize emin misiniz? Artık bu kullanıcıdan mesaj alamayacaksınız.",
+                        t('messages.blockUser'),
+                        t('messages.blockUserConfirm'),
                         [
-                          { text: "İptal", style: "cancel" },
+                          { text: t('common.cancel'), style: "cancel" },
                           {
-                            text: "Engelle",
+                            text: t('messages.block'),
                             style: "destructive",
                             onPress: async () => {
                               try {
                                 await blockUserMutation.mutateAsync({
                                   userId: otherUserId!,
-                                  reason: "Kullanıcı tarafından engellendi",
+                                  reason: "Blocked by user",
                                 });
-                                Alert.alert("Başarılı", "Kullanıcı engellendi");
+                                Alert.alert(t('common.success'), t('messages.userBlocked'));
                                 router.back();
                               } catch (error) {
-                                Alert.alert("Hata", "Kullanıcı engellenemedi");
+                                Alert.alert(t('common.error'), t('messages.blockFailed'));
                               }
                             },
                           },
@@ -575,32 +577,32 @@ export default function ChatDetailScreen() {
                                   
                                   if (result.success) {
                                     Alert.alert(
-                                      "AI Özeti",
+                                      t('messages.aiSummary'),
                                       result.summary,
                                       [
-                                        { text: "Kapat", style: "cancel" },
+                                        { text: t('common.cancel'), style: "cancel" },
                                         {
-                                          text: "İndir",
+                                          text: "Download",
                                           onPress: async () => {
                                             try {
                                               const FileSystem = await import("expo-file-system/legacy");
-                                              const fileName = `ozet_${Date.now()}.txt`;
+                                              const fileName = `summary_${Date.now()}.txt`;
                                               const fileUri = FileSystem.documentDirectory + fileName;
                                               await FileSystem.writeAsStringAsync(fileUri, result.summary || "");
-                                              Alert.alert("Başarılı", "Özet indirildi");
+                                              Alert.alert(t('common.success'), t('messages.summaryDownloaded'));
                                             } catch (error) {
-                                              Alert.alert("Hata", "Özet indirilemedi");
+                                              Alert.alert(t('common.error'), t('messages.summaryDownloadFailed'));
                                             }
                                           },
                                         },
                                       ]
                                     );
                                   } else {
-                                    Alert.alert("Hata", result.message || "Özet oluşturulamadı");
+                                    Alert.alert(t('common.error'), result.message || t('messages.summaryFailed'));
                                   }
                                 } catch (error) {
                                   console.error("AI summary error:", error);
-                                  Alert.alert("Hata", "Özet oluşturulurken hata oluştu");
+                                  Alert.alert(t('common.error'), t('messages.summaryError'));
                                 }
                               }}
                             >
@@ -620,30 +622,30 @@ export default function ChatDetailScreen() {
                                     const MediaLibrary = await import("expo-media-library");
                                     const { status } = await MediaLibrary.requestPermissionsAsync();
                                     if (status !== "granted") {
-                                      Alert.alert("İzin Gerekli", "Galeriye kaydetmek için izin gereklidir");
+                                      Alert.alert(t('messages.permissionRequired'), t('messages.galleryPermission'));
                                       return;
                                     }
-                                    Alert.alert("İndiriliyor", "Fotoğraf galeriye kaydediliyor...");
+                                    Alert.alert(t('messages.downloading'), t('messages.photoSaving'));
                                     const FileSystem = await import("expo-file-system/legacy");
                                     const fileUri = FileSystem.documentDirectory + `image_${Date.now()}.jpg`;
                                     const downloadResult = await FileSystem.downloadAsync((item as any).media.mediaUrl, fileUri);
                                     await MediaLibrary.saveToLibraryAsync(downloadResult.uri);
-                                    Alert.alert("Başarılı", "Fotoğraf galeriye kaydedildi");
+                                    Alert.alert(t('common.success'), t('messages.photoSaved'));
                                   } catch (error) {
                                     console.error("Download image error:", error);
-                                    Alert.alert("Hata", "Fotoğraf kaydedilemedi");
+                                    Alert.alert(t('common.error'), t('messages.photoSaveFailed'));
                                   }
                                 } else if ((item as any).media.mediaType === "document") {
                                   try {
-                                    Alert.alert("İndiriliyor", "Belge indiriliyor...");
+                                    Alert.alert(t('messages.downloading'), t('messages.documentDownloading'));
                                     const FileSystem = await import("expo-file-system/legacy");
                                     const fileName = (item as any).media.fileName || `document_${Date.now()}`;
                                     const fileUri = FileSystem.documentDirectory + fileName;
                                     await FileSystem.downloadAsync((item as any).media.mediaUrl, fileUri);
-                                    Alert.alert("Başarılı", "Belge indirildi");
+                                    Alert.alert(t('common.success'), t('messages.documentDownloaded'));
                                   } catch (error) {
                                     console.error("Download error:", error);
-                                    Alert.alert("Hata", "Belge indirilemedi");
+                                    Alert.alert(t('common.error'), t('messages.documentDownloadFailed'));
                                   }
                                 }
                               }}

@@ -4,21 +4,26 @@ import {
   Text,
   TouchableOpacity,
   Dimensions,
-  FlatList,
   ViewToken,
+  useWindowDimensions,
+  SafeAreaView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/use-colors';
 import { useI18n } from '@/hooks/use-i18n';
+import { ScreenContainer } from '@/components/screen-container';
 import Animated, {
   useAnimatedStyle,
+  useAnimatedScrollHandler,
   useSharedValue,
-  withSpring,
   interpolate,
   Extrapolation,
+  SharedValue,
 } from 'react-native-reanimated';
+
+const AnimatedFlatList = Animated.createAnimatedComponent(Animated.FlatList);
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
@@ -52,8 +57,14 @@ export default function OnboardingScreen() {
   const colors = useColors();
   const { t } = useI18n();
   const [currentIndex, setCurrentIndex] = useState(0);
-  const flatListRef = useRef<FlatList>(null);
+  const flatListRef = useRef<Animated.FlatList<any>>(null);
   const scrollX = useSharedValue(0);
+
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollX.value = event.contentOffset.x;
+    },
+  });
 
   const onViewableItemsChanged = useRef(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
@@ -87,226 +98,254 @@ export default function OnboardingScreen() {
     router.replace('/otp-login');
   };
 
-  const renderSlide = ({ item, index }: { item: typeof slides[0]; index: number }) => {
-    const animatedStyle = useAnimatedStyle(() => {
-      const inputRange = [
-        (index - 1) * width,
-        index * width,
-        (index + 1) * width,
-      ];
-
-      const scale = interpolate(
-        scrollX.value,
-        inputRange,
-        [0.8, 1, 0.8],
-        Extrapolation.CLAMP
-      );
-
-      const opacity = interpolate(
-        scrollX.value,
-        inputRange,
-        [0.5, 1, 0.5],
-        Extrapolation.CLAMP
-      );
-
-      return {
-        transform: [{ scale }],
-        opacity,
-      };
-    });
-
-    return (
-      <View
-        style={{
-          width,
-          alignItems: 'center',
-          justifyContent: 'center',
-          paddingHorizontal: 40,
-        }}
-      >
-        <Animated.View style={[{ alignItems: 'center' }, animatedStyle]}>
-          <View
-            style={{
-              width: 120,
-              height: 120,
-              borderRadius: 60,
-              backgroundColor: item.color + '20',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: 40,
-            }}
-          >
-            <Ionicons name={item.icon} size={60} color={item.color} />
-          </View>
-
-          <Text
-            style={{
-              fontSize: 28,
-              fontWeight: 'bold',
-              color: colors.foreground,
-              textAlign: 'center',
-              marginBottom: 16,
-            }}
-          >
-            {t(item.titleKey)}
-          </Text>
-
-          <Text
-            style={{
-              fontSize: 16,
-              color: colors.muted,
-              textAlign: 'center',
-              lineHeight: 24,
-            }}
-          >
-            {t(item.descriptionKey)}
-          </Text>
-        </Animated.View>
-      </View>
-    );
-  };
-
   return (
     <LinearGradient
       colors={[colors.background, colors.surface]}
       style={{ flex: 1 }}
     >
-      <View style={{ flex: 1, paddingTop: 60 }}>
-        {/* Header */}
-        <View
-          style={{
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            paddingHorizontal: 20,
-            marginBottom: 40,
-          }}
-        >
-          <Text
+      <SafeAreaView style={{ flex: 1 }}>
+        <View style={{ flex: 1, paddingTop: 60 }}>
+          {/* Header */}
+          <View
             style={{
-              fontSize: 24,
-              fontWeight: 'bold',
-              color: colors.primary,
-            }}
-          >
-            LingoChat
-          </Text>
-
-          {currentIndex < slides.length - 1 && (
-            <TouchableOpacity onPress={handleSkip}>
-              <Text
-                style={{
-                  fontSize: 16,
-                  color: colors.muted,
-                }}
-              >
-                {t('onboarding.skip')}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Slides */}
-        <FlatList
-          ref={flatListRef}
-          data={slides}
-          renderItem={renderSlide}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onScroll={(event) => {
-            scrollX.value = event.nativeEvent.contentOffset.x;
-          }}
-          onViewableItemsChanged={onViewableItemsChanged}
-          viewabilityConfig={viewabilityConfig}
-          scrollEventThrottle={16}
-          keyExtractor={(item) => item.id}
-        />
-
-        {/* Pagination Dots */}
-        <View
-          style={{
-            flexDirection: 'row',
-            justifyContent: 'center',
-            alignItems: 'center',
-            marginVertical: 40,
-          }}
-        >
-          {slides.map((_, index) => {
-            const animatedDotStyle = useAnimatedStyle(() => {
-              const inputRange = [
-                (index - 1) * width,
-                index * width,
-                (index + 1) * width,
-              ];
-
-              const dotWidth = interpolate(
-                scrollX.value,
-                inputRange,
-                [8, 24, 8],
-                Extrapolation.CLAMP
-              );
-
-              const opacity = interpolate(
-                scrollX.value,
-                inputRange,
-                [0.3, 1, 0.3],
-                Extrapolation.CLAMP
-              );
-
-              return {
-                width: dotWidth,
-                opacity,
-              };
-            });
-
-            return (
-              <Animated.View
-                key={index}
-                style={[
-                  {
-                    height: 8,
-                    borderRadius: 4,
-                    backgroundColor: colors.primary,
-                    marginHorizontal: 4,
-                  },
-                  animatedDotStyle,
-                ]}
-              />
-            );
-          })}
-        </View>
-
-        {/* Next/Get Started Button */}
-        <View style={{ paddingHorizontal: 40, paddingBottom: 40 }}>
-          <TouchableOpacity
-            onPress={handleNext}
-            style={{
-              backgroundColor: colors.primary,
-              borderRadius: 16,
-              paddingVertical: 18,
+              flexDirection: 'row',
+              justifyContent: 'space-between',
               alignItems: 'center',
-              shadowColor: colors.primary,
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.3,
-              shadowRadius: 8,
-              elevation: 8,
+              paddingHorizontal: 20,
+              marginBottom: 40,
             }}
           >
             <Text
               style={{
-                color: '#ffffff',
-                fontSize: 18,
-                fontWeight: '600',
+                fontSize: 24,
+                fontWeight: 'bold',
+                color: colors.primary,
               }}
             >
-              {currentIndex === slides.length - 1
-                ? t('onboarding.getStarted')
-                : t('common.next')}
+              LingoChat
             </Text>
-          </TouchableOpacity>
+
+            {currentIndex < slides.length - 1 && (
+              <TouchableOpacity onPress={handleSkip}>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    color: colors.muted,
+                  }}
+                >
+                  {t('onboarding.skip')}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Slides */}
+          <AnimatedFlatList
+            ref={flatListRef}
+            data={slides}
+            renderItem={({ item, index }) => (
+              <SlideItem item={item} index={index} scrollX={scrollX} />
+            )}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onScroll={scrollHandler}
+            onViewableItemsChanged={onViewableItemsChanged}
+            viewabilityConfig={viewabilityConfig}
+            scrollEventThrottle={16}
+            keyExtractor={(item) => item.id}
+          />
+
+          {/* Pagination Dots */}
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginVertical: 40,
+            }}
+          >
+            {slides.map((_, index) => (
+              <PaginationDot key={index} index={index} scrollX={scrollX} />
+            ))}
+          </View>
+
+          {/* Next/Get Started Button */}
+          <View style={{ paddingHorizontal: 40, paddingBottom: 40 }}>
+            <TouchableOpacity
+              onPress={handleNext}
+              style={{
+                backgroundColor: colors.primary,
+                borderRadius: 16,
+                paddingVertical: 18,
+                alignItems: 'center',
+                shadowColor: colors.primary,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 8,
+              }}
+            >
+              <Text
+                style={{
+                  color: '#ffffff',
+                  fontSize: 18,
+                  fontWeight: '600',
+                }}
+              >
+                {currentIndex === slides.length - 1
+                  ? t('onboarding.getStarted')
+                  : t('common.next')}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      </SafeAreaView>
     </LinearGradient>
+  );
+}
+
+// Separate component for slide items
+function SlideItem({ 
+  item, 
+  index, 
+  scrollX 
+}: { 
+  item: typeof slides[0]; 
+  index: number; 
+  scrollX: SharedValue<number>;
+}) {
+  const colors = useColors();
+  const { t } = useI18n();
+  const { width } = useWindowDimensions();
+
+  const animatedStyle = useAnimatedStyle(() => {
+    const inputRange = [
+      (index - 1) * width,
+      index * width,
+      (index + 1) * width,
+    ];
+
+    const scale = interpolate(
+      scrollX.value,
+      inputRange,
+      [0.8, 1, 0.8],
+      Extrapolation.CLAMP
+    );
+
+    const opacity = interpolate(
+      scrollX.value,
+      inputRange,
+      [0.5, 1, 0.5],
+      Extrapolation.CLAMP
+    );
+
+    return {
+      transform: [{ scale }],
+      opacity,
+    };
+  });
+
+  return (
+    <View
+      style={{
+        width,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 40,
+      }}
+    >
+      <Animated.View style={[{ alignItems: 'center' }, animatedStyle]}>
+        <View
+          style={{
+            width: 120,
+            height: 120,
+            borderRadius: 60,
+            backgroundColor: item.color + '20',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 40,
+          }}
+        >
+          <Ionicons name={item.icon} size={60} color={item.color} />
+        </View>
+
+        <Text
+          style={{
+            fontSize: 28,
+            fontWeight: 'bold',
+            color: colors.foreground,
+            textAlign: 'center',
+            marginBottom: 16,
+          }}
+        >
+          {t(item.titleKey)}
+        </Text>
+
+        <Text
+          style={{
+            fontSize: 16,
+            color: colors.muted,
+            textAlign: 'center',
+            lineHeight: 24,
+          }}
+        >
+          {t(item.descriptionKey)}
+        </Text>
+      </Animated.View>
+    </View>
+  );
+}
+
+// Separate component for pagination dots
+function PaginationDot({ 
+  index, 
+  scrollX 
+}: { 
+  index: number; 
+  scrollX: SharedValue<number>;
+}) {
+  const colors = useColors();
+  const { width } = useWindowDimensions();
+
+  const animatedDotStyle = useAnimatedStyle(() => {
+    const inputRange = [
+      (index - 1) * width,
+      index * width,
+      (index + 1) * width,
+    ];
+
+    const dotWidth = interpolate(
+      scrollX.value,
+      inputRange,
+      [8, 24, 8],
+      Extrapolation.CLAMP
+    );
+
+    const opacity = interpolate(
+      scrollX.value,
+      inputRange,
+      [0.3, 1, 0.3],
+      Extrapolation.CLAMP
+    );
+
+    return {
+      width: dotWidth,
+      opacity,
+    };
+  });
+
+  return (
+    <Animated.View
+      style={[
+        {
+          height: 8,
+          borderRadius: 4,
+          backgroundColor: colors.primary,
+          marginHorizontal: 4,
+        },
+        animatedDotStyle,
+      ]}
+    />
   );
 }

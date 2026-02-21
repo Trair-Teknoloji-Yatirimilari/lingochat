@@ -4,6 +4,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { Ionicons } from "@expo/vector-icons";
 import { useColors } from "@/hooks/use-colors";
+import { useI18n } from "@/hooks/use-i18n";
 import { trpc } from "@/lib/trpc";
 import Animated, {
   useAnimatedStyle,
@@ -17,6 +18,7 @@ import Animated, {
 export default function GroupsScreen() {
   const router = useRouter();
   const colors = useColors();
+  const { t } = useI18n();
   const [roomCode, setRoomCode] = useState("");
   const [joining, setJoining] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -79,7 +81,7 @@ export default function GroupsScreen() {
 
   const handleJoinWithCode = async () => {
     if (roomCode.length !== 6) {
-      Alert.alert("Hata", "Lütfen 6 haneli oda kodunu girin");
+      Alert.alert(t('common.error'), "Please enter the 6-digit room code");
       return;
     }
 
@@ -95,14 +97,14 @@ export default function GroupsScreen() {
         if (result.room?.id) {
           router.push(`/room-detail?roomId=${result.room.id}` as any);
         } else {
-          Alert.alert("Başarılı", result.message || "Odaya katıldınız");
+          Alert.alert(t('common.success'), result.message || "You joined the room");
         }
       } else {
-        Alert.alert("Hata", result.message || "Odaya katılınamadı");
+        Alert.alert(t('common.error'), result.message || "Could not join room");
       }
     } catch (error) {
       console.error("Join room error:", error);
-      Alert.alert("Hata", "Bir hata oluştu");
+      Alert.alert(t('common.error'), t('errors.serverError'));
     } finally {
       setJoining(false);
     }
@@ -133,9 +135,9 @@ export default function GroupsScreen() {
       >
         {/* Header */}
         <View className="p-6 pb-3">
-          <Text className="text-2xl font-bold text-foreground">Gruplar</Text>
+          <Text className="text-2xl font-bold text-foreground">{t('tabs.groups')}</Text>
           <Text className="text-sm text-muted mt-1">
-            Dil engelini aşın, dünyayla konuşun
+            Break language barriers, talk to the world
           </Text>
         </View>
 
@@ -164,7 +166,7 @@ export default function GroupsScreen() {
               <Animated.View style={animatedIconStyle}>
                 <Ionicons name="add-circle" size={20} color="#ffffff" />
               </Animated.View>
-              <Text className="text-white font-semibold text-sm">Yeni Oda</Text>
+              <Text className="text-white font-semibold text-sm">{t('groups.newGroup')}</Text>
             </TouchableOpacity>
           </Animated.View>
 
@@ -172,12 +174,12 @@ export default function GroupsScreen() {
             onPress={() => {
               // Kod ile katıl modal'ını aç
               Alert.prompt(
-                "Kod ile Katıl",
-                "6 haneli oda kodunu girin",
+                "Join with Code",
+                "Enter the 6-digit room code",
                 [
-                  { text: "İptal", style: "cancel" },
+                  { text: t('common.cancel'), style: "cancel" },
                   {
-                    text: "Katıl",
+                    text: "Join",
                     onPress: async (code?: string) => {
                       if (code && code.length === 6) {
                         setJoining(true);
@@ -186,15 +188,15 @@ export default function GroupsScreen() {
                           if (result.success && result.room?.id) {
                             router.push(`/room-detail?roomId=${result.room.id}` as any);
                           } else {
-                            Alert.alert("Hata", result.message || "Odaya katılınamadı");
+                            Alert.alert(t('common.error'), result.message || "Could not join room");
                           }
                         } catch (error) {
-                          Alert.alert("Hata", "Bir hata oluştu");
+                          Alert.alert(t('common.error'), t('errors.serverError'));
                         } finally {
                           setJoining(false);
                         }
                       } else {
-                        Alert.alert("Hata", "Lütfen 6 haneli kod girin");
+                        Alert.alert(t('common.error'), "Please enter 6-digit code");
                       }
                     },
                   },
@@ -219,7 +221,7 @@ export default function GroupsScreen() {
           >
             <Ionicons name="key-outline" size={20} color={colors.primary} />
             <Text className="font-semibold text-sm" style={{ color: colors.primary }}>
-              Kod ile Katıl
+              Join with Code
             </Text>
           </TouchableOpacity>
         </View>
@@ -242,7 +244,7 @@ export default function GroupsScreen() {
             >
               <Ionicons name="search" size={20} color={colors.muted} />
               <TextInput
-                placeholder="Oda adı veya kod ara..."
+                placeholder="Search room name or code..."
                 placeholderTextColor={colors.muted}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
@@ -264,7 +266,7 @@ export default function GroupsScreen() {
         {/* Active Rooms Section */}
         <View className="px-6">
           <View className="flex-row items-center justify-between mb-3">
-            <Text className="text-base font-bold text-foreground">Aktif Odalar</Text>
+            <Text className="text-base font-bold text-foreground">Active Rooms</Text>
             {myRooms && myRooms.length > 0 && (
               <View
                 style={{
@@ -293,7 +295,7 @@ export default function GroupsScreen() {
               }}
             >
               <ActivityIndicator color={colors.primary} size="small" />
-              <Text className="text-xs text-muted mt-3">Yükleniyor...</Text>
+              <Text className="text-xs text-muted mt-3">{t('common.loading')}</Text>
             </View>
           ) : filteredRooms.length > 0 ? (
             <View className="gap-2">
@@ -385,10 +387,10 @@ export default function GroupsScreen() {
                 <Ionicons name="search-outline" size={28} color={colors.muted} />
               </View>
               <Text className="text-sm font-semibold text-foreground mb-1">
-                Sonuç Bulunamadı
+                {t('groups.noResults')}
               </Text>
               <Text className="text-xs text-muted text-center">
-                "{searchQuery}" için oda bulunamadı
+                "{searchQuery}" {t('groups.noResultsDescription')}
               </Text>
             </View>
           ) : (
@@ -416,10 +418,10 @@ export default function GroupsScreen() {
                 <Ionicons name="people-outline" size={28} color={colors.primary} />
               </View>
               <Text className="text-sm font-semibold text-foreground mb-1">
-                Henüz Oda Yok
+                {t('groups.noRooms')}
               </Text>
               <Text className="text-xs text-muted text-center">
-                Yeni bir oda oluşturun veya kod ile katılın
+                {t('groups.noRoomsDescription')}
               </Text>
             </View>
           )}
@@ -441,10 +443,10 @@ export default function GroupsScreen() {
             <Ionicons name="language" size={20} color={colors.primary} />
             <View className="flex-1">
               <Text className="text-xs font-semibold text-foreground mb-0.5">
-                Otomatik Çeviri
+                {t('groups.autoTranslation')}
               </Text>
               <Text className="text-xs text-muted" style={{ fontSize: 11 }}>
-                Herkes kendi dilinde konuşur ve okur
+                {t('groups.autoTranslationDescription')}
               </Text>
             </View>
           </View>
@@ -463,10 +465,10 @@ export default function GroupsScreen() {
             <Ionicons name="shield-checkmark" size={20} color={colors.primary} />
             <View className="flex-1">
               <Text className="text-xs font-semibold text-foreground mb-0.5">
-                Güvenli ve Özel
+                {t('groups.securePrivate')}
               </Text>
               <Text className="text-xs text-muted" style={{ fontSize: 11 }}>
-                Tüm mesajlarınız şifreli ve güvenli
+                {t('groups.securePrivateDescription')}
               </Text>
             </View>
           </View>

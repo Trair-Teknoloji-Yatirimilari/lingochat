@@ -4,6 +4,8 @@ import { ScreenContainer } from "@/components/screen-container";
 import { trpc } from "@/lib/trpc";
 import { Ionicons } from "@expo/vector-icons";
 import { useColors } from "@/hooks/use-colors";
+import { useI18n } from "@/hooks/use-i18n";
+import { LANGUAGES } from "@/lib/i18n";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import ReanimatedAnimated, {
@@ -18,6 +20,7 @@ import ReanimatedAnimated, {
 export default function HomeScreen() {
   const { user } = useAuth();
   const colors = useColors();
+  const { t, changeLanguage } = useI18n();
   const router = useRouter();
   const profileQuery = trpc.profile.get.useQuery();
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -37,6 +40,18 @@ export default function HomeScreen() {
       setShowLanguageDropdown(false);
     },
   });
+
+  // Set default language to English on first load
+  useEffect(() => {
+    if (profileQuery.data && !profileQuery.data.preferredLanguage) {
+      // If no language is set, default to English
+      updateLanguageMutation.mutate({ preferredLanguage: 'en' });
+      changeLanguage('en');
+    } else if (profileQuery.data?.preferredLanguage) {
+      // Sync app language with user's preferred language
+      changeLanguage(profileQuery.data.preferredLanguage);
+    }
+  }, [profileQuery.data]);
 
   useEffect(() => {
     // Entrance animations
@@ -118,20 +133,12 @@ export default function HomeScreen() {
     ],
   }));
 
-  const LANGUAGES = [
-    { code: "tr", name: "Türkçe", flag: "🇹🇷" },
-    { code: "en", name: "İngilizce", flag: "🇬🇧" },
-    { code: "es", name: "İspanyolca", flag: "🇪🇸" },
-    { code: "fr", name: "Fransızca", flag: "🇫🇷" },
-    { code: "de", name: "Almanca", flag: "🇩🇪" },
-    { code: "ja", name: "Japonca", flag: "🇯🇵" },
-    { code: "zh", name: "Çince", flag: "🇨🇳" },
-  ];
-
-  const preferredLang = profileQuery.data?.preferredLanguage || "tr";
+  const preferredLang = profileQuery.data?.preferredLanguage || "en";
   const currentLanguage = LANGUAGES.find((l) => l.code === preferredLang) || LANGUAGES[0];
 
   const handleLanguageChange = (languageCode: string) => {
+    // Update both app UI and backend
+    changeLanguage(languageCode);
     updateLanguageMutation.mutate({ preferredLanguage: languageCode });
   };
 
@@ -170,7 +177,7 @@ export default function HomeScreen() {
             LingoChat
           </Text>
           <Text className="text-xs text-muted text-center">
-            Dil engellerini kaldır, dünyayla bağlan
+            {t('onboarding.subtitle')}
           </Text>
         </View>
 
@@ -217,10 +224,10 @@ export default function HomeScreen() {
             </Animated.View>
             <View className="flex-1">
               <Text className="text-lg font-bold text-foreground mb-0.5">
-                Hoş geldin, {profileQuery.data?.username || "Kullanıcı"}!
+                {t('onboarding.welcome')}, {profileQuery.data?.username || "User"}!
               </Text>
               <Text className="text-xs text-muted">
-                Bugün kiminle konuşmak istersin?
+                Who would you like to talk to today?
               </Text>
             </View>
           </View>
@@ -240,7 +247,7 @@ export default function HomeScreen() {
             <View className="flex-row items-center gap-2">
               <Text className="text-base">{currentLanguage.flag}</Text>
               <Text className="text-xs text-foreground font-semibold">
-                {currentLanguage.name}
+                {currentLanguage.nativeName}
               </Text>
             </View>
             <Ionicons 
@@ -287,7 +294,7 @@ export default function HomeScreen() {
                       fontWeight: lang.code === preferredLang ? "600" : "400",
                     }}
                   >
-                    {lang.name}
+                    {lang.nativeName}
                   </Text>
                   {lang.code === preferredLang && (
                     <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
@@ -322,7 +329,7 @@ export default function HomeScreen() {
                   <Ionicons name="add-circle" size={22} color={colors.background} />
                 </ReanimatedAnimated.View>
                 <Text className="text-background font-semibold text-xs mt-1">
-                  Yeni Sohbet
+                  {t('chats.newChat')}
                 </Text>
               </TouchableOpacity>
             </ReanimatedAnimated.View>
@@ -341,7 +348,7 @@ export default function HomeScreen() {
             >
               <Ionicons name="chatbubbles-outline" size={22} color={colors.primary} />
               <Text className="text-foreground font-semibold text-xs mt-1">
-                Sohbetlerim
+                {t('tabs.chats')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -350,20 +357,20 @@ export default function HomeScreen() {
         {/* Compact Features Grid */}
         <View className="mb-3">
           <Text className="text-sm font-bold text-foreground mb-2">
-            Öne Çıkan Özellikler
+            Featured
           </Text>
           <View className="gap-2">
             <View className="flex-row gap-2">
               <CompactFeatureCard
                 iconName="sparkles"
                 iconColor="#FF6B6B"
-                title="AI Toplantı Özeti"
-                badge="YENİ"
+                title="AI Meeting Summary"
+                badge="NEW"
               />
               <CompactFeatureCard
                 iconName="time-outline"
                 iconColor="#4ECDC4"
-                title="Otomatik Silinen Mesajlar"
+                title="Auto-Delete Messages"
                 badge="PRO"
               />
             </View>
@@ -371,14 +378,14 @@ export default function HomeScreen() {
               <CompactFeatureCard
                 iconName="mic"
                 iconColor="#95E1D3"
-                title="Sesli Çeviri"
-                badge="YAKINDA"
+                title="Voice Translation"
+                badge="SOON"
               />
               <CompactFeatureCard
                 iconName="document-text"
                 iconColor="#F38181"
-                title="Belge Analizi"
-                badge="YAKINDA"
+                title="Document Analysis"
+                badge="SOON"
               />
             </View>
           </View>
@@ -417,10 +424,10 @@ export default function HomeScreen() {
                 className="text-xs font-bold mb-0.5"
                 style={{ color: colors.primary }}
               >
-                Dil Engeli Yok! 🌍
+                No Language Barriers! 🌍
               </Text>
               <Text className="text-xs text-muted leading-relaxed" style={{ fontSize: 11 }}>
-                Mesajlar otomatik çevrilir. Sen Türkçe yaz, karşı taraf İngilizce okusun!
+                Messages are automatically translated. You write in English, they read in Turkish!
               </Text>
             </View>
           </View>
@@ -446,11 +453,11 @@ function CompactFeatureCard({
   // Badge colors
   const getBadgeStyle = () => {
     switch (badge) {
-      case "YENİ":
+      case "NEW":
         return { bg: "#FF6B6B", text: "#FFFFFF" };
       case "PRO":
         return { bg: "#4ECDC4", text: "#FFFFFF" };
-      case "YAKINDA":
+      case "SOON":
         return { bg: colors.muted, text: "#FFFFFF" };
       default:
         return { bg: colors.primary, text: "#FFFFFF" };

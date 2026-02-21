@@ -5,10 +5,12 @@ import { ScreenContainer } from "@/components/screen-container";
 import { Ionicons } from "@expo/vector-icons";
 import { useColors } from "@/hooks/use-colors";
 import { trpc } from "@/lib/trpc";
+import { useI18n } from "@/hooks/use-i18n";
 
 export default function CreateRoomScreen() {
   const router = useRouter();
   const colors = useColors();
+  const { t } = useI18n();
   const [roomName, setRoomName] = useState("");
   const [description, setDescription] = useState("");
   const [maxParticipants, setMaxParticipants] = useState("50");
@@ -19,12 +21,12 @@ export default function CreateRoomScreen() {
 
   const handleCreateRoom = async () => {
     if (!roomName.trim()) {
-      Alert.alert("Hata", "Lütfen oda adı girin");
+      Alert.alert(t('common.error'), t('createRoom.roomNameError'));
       return;
     }
 
     if (roomName.trim().length < 3) {
-      Alert.alert("Hata", "Oda adı en az 3 karakter olmalıdır");
+      Alert.alert(t('common.error'), t('createRoom.roomNameMinError'));
       return;
     }
 
@@ -42,11 +44,11 @@ export default function CreateRoomScreen() {
         const roomCode = result.room.roomCode;
         
         Alert.alert(
-          "Oda Oluşturuldu! 🎉",
-          `Oda Kodu: ${roomCode}\n\nBu kodu arkadaşlarınızla paylaşarak onları odaya davet edebilirsiniz.`,
+          t('createRoom.roomCreated'),
+          t('createRoom.roomCodeMessage').replace('{code}', roomCode),
           [
             {
-              text: "Odaya Git",
+              text: t('createRoom.goToRoom'),
               onPress: () => {
                 // Invalidate query to refresh groups list
                 utils.groups.getMyRooms.invalidate();
@@ -58,7 +60,7 @@ export default function CreateRoomScreen() {
       }
     } catch (error) {
       console.error("Create room error:", error);
-      Alert.alert("Hata", "Oda oluşturulurken bir hata oluştu");
+      Alert.alert(t('common.error'), t('createRoom.createError'));
     } finally {
       setLoading(false);
     }
@@ -92,8 +94,8 @@ export default function CreateRoomScreen() {
             <Ionicons name="arrow-back" size={24} color={colors.foreground} />
           </TouchableOpacity>
           <View className="flex-1">
-            <Text className="text-xl font-bold text-foreground">Yeni Oda Oluştur</Text>
-            <Text className="text-xs text-muted">Grup toplantısı başlat</Text>
+            <Text className="text-xl font-bold text-foreground">{t('createRoom.title')}</Text>
+            <Text className="text-xs text-muted">{t('createRoom.subtitle')}</Text>
           </View>
         </View>
 
@@ -102,12 +104,12 @@ export default function CreateRoomScreen() {
           <View>
             <View className="flex-row items-center gap-2 mb-2">
               <Ionicons name="chatbubbles" size={20} color={colors.primary} />
-              <Text className="text-sm font-semibold text-foreground">Oda Adı *</Text>
+              <Text className="text-sm font-semibold text-foreground">{t('createRoom.roomNameRequired')}</Text>
             </View>
             <TextInput
               value={roomName}
               onChangeText={setRoomName}
-              placeholder="Örn: İş Toplantısı, Proje Görüşmesi"
+              placeholder={t('createRoom.roomNamePlaceholder')}
               placeholderTextColor={colors.muted}
               maxLength={50}
               style={{
@@ -120,19 +122,19 @@ export default function CreateRoomScreen() {
                 borderColor: colors.border,
               }}
             />
-            <Text className="text-xs text-muted mt-1">{roomName.length}/50 karakter</Text>
+            <Text className="text-xs text-muted mt-1">{roomName.length}/50 {t('createRoom.characters')}</Text>
           </View>
 
           {/* Description */}
           <View>
             <View className="flex-row items-center gap-2 mb-2">
               <Ionicons name="document-text" size={20} color={colors.primary} />
-              <Text className="text-sm font-semibold text-foreground">Açıklama</Text>
+              <Text className="text-sm font-semibold text-foreground">{t('createRoom.description')}</Text>
             </View>
             <TextInput
               value={description}
               onChangeText={setDescription}
-              placeholder="Oda hakkında kısa bir açıklama (opsiyonel)"
+              placeholder={t('createRoom.descriptionPlaceholder')}
               placeholderTextColor={colors.muted}
               maxLength={200}
               multiline
@@ -149,14 +151,14 @@ export default function CreateRoomScreen() {
                 textAlignVertical: "top",
               }}
             />
-            <Text className="text-xs text-muted mt-1">{description.length}/200 karakter</Text>
+            <Text className="text-xs text-muted mt-1">{description.length}/200 {t('createRoom.characters')}</Text>
           </View>
 
           {/* Max Participants */}
           <View>
             <View className="flex-row items-center gap-2 mb-2">
               <Ionicons name="people" size={20} color={colors.primary} />
-              <Text className="text-sm font-semibold text-foreground">Maksimum Katılımcı</Text>
+              <Text className="text-sm font-semibold text-foreground">{t('createRoom.maxParticipants')}</Text>
             </View>
             <View className="flex-row gap-3">
               {["10", "25", "50", "100"].map((value) => (
@@ -200,10 +202,10 @@ export default function CreateRoomScreen() {
             <Ionicons name="information-circle" size={24} color={colors.primary} />
             <View className="flex-1">
               <Text className="text-sm font-semibold text-foreground mb-1">
-                Otomatik Çeviri Aktif
+                {t('createRoom.autoTranslation')}
               </Text>
               <Text className="text-xs text-muted">
-                Odaya katılan herkes kendi dilinde mesajları okuyabilecek. Sistem otomatik olarak çeviri yapacak.
+                {t('createRoom.autoTranslationDescription')}
               </Text>
             </View>
           </View>
@@ -226,7 +228,7 @@ export default function CreateRoomScreen() {
             ) : (
               <View className="flex-row items-center gap-2">
                 <Ionicons name="checkmark-circle" size={24} color="#ffffff" />
-                <Text className="text-white font-bold text-lg">Oda Oluştur</Text>
+                <Text className="text-white font-bold text-lg">{t('createRoom.createButton')}</Text>
               </View>
             )}
           </TouchableOpacity>

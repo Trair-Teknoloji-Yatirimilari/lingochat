@@ -13,6 +13,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { Ionicons } from "@expo/vector-icons";
 import { useColors } from "@/hooks/use-colors";
+import { useI18n } from "@/hooks/use-i18n";
 import { trpc } from "@/lib/trpc";
 import * as Contacts from "expo-contacts";
 
@@ -33,6 +34,7 @@ interface LingoUser {
 export default function InviteToRoomScreen() {
   const router = useRouter();
   const colors = useColors();
+  const { t } = useI18n();
   const params = useLocalSearchParams();
   const roomId = parseInt(params.roomId as string);
 
@@ -128,7 +130,7 @@ export default function InviteToRoomScreen() {
 
   const handleInvite = async () => {
     if (selectedUsers.size === 0) {
-      Alert.alert("Uyarı", "Lütfen en az bir kullanıcı seçin");
+      Alert.alert(t('common.error'), t('inviteToRoom.selectAtLeastOne'));
       return;
     }
 
@@ -141,11 +143,11 @@ export default function InviteToRoomScreen() {
 
       if (result.success) {
         Alert.alert(
-          "Başarılı",
-          `${result.invited} kullanıcı odaya davet edildi`,
+          t('inviteToRoom.inviteSuccess'),
+          t('inviteToRoom.inviteSuccessMessage').replace('{count}', result.invited.toString()),
           [
             {
-              text: "Tamam",
+              text: t('common.done'),
               onPress: () => router.back(),
             },
           ]
@@ -153,7 +155,7 @@ export default function InviteToRoomScreen() {
       }
     } catch (error) {
       console.error("Invite error:", error);
-      Alert.alert("Hata", "Davet gönderilemedi");
+      Alert.alert(t('common.error'), t('inviteToRoom.inviteError'));
     } finally {
       setInviting(false);
     }
@@ -190,7 +192,7 @@ export default function InviteToRoomScreen() {
           <Ionicons name="arrow-back" size={24} color={colors.foreground} />
         </TouchableOpacity>
         <View className="flex-1">
-          <Text className="text-xl font-bold text-foreground">Katılımcı Davet Et</Text>
+          <Text className="text-xl font-bold text-foreground">{t('inviteToRoom.title')}</Text>
           {room && (
             <Text className="text-xs text-muted">{room.name}</Text>
           )}
@@ -214,7 +216,7 @@ export default function InviteToRoomScreen() {
           <TextInput
             value={searchQuery}
             onChangeText={handleSearch}
-            placeholder="Kullanıcı adı veya telefon ara..."
+            placeholder={t('inviteToRoom.searchPlaceholder')}
             placeholderTextColor={colors.muted}
             style={{
               flex: 1,
@@ -243,10 +245,10 @@ export default function InviteToRoomScreen() {
             <Ionicons name="people" size={40} color={colors.primary} />
           </View>
           <Text className="text-lg font-bold text-foreground mb-2 text-center">
-            Rehber Erişimi Gerekli
+            {t('inviteToRoom.contactsPermissionTitle')}
           </Text>
           <Text className="text-sm text-muted text-center mb-4">
-            LingoChat kullanan arkadaşlarınızı bulmak için rehber erişimine izin verin
+            {t('inviteToRoom.contactsPermissionDescription')}
           </Text>
           <TouchableOpacity
             onPress={requestContactsPermission}
@@ -257,7 +259,7 @@ export default function InviteToRoomScreen() {
               paddingVertical: 12,
             }}
           >
-            <Text className="text-white font-semibold">İzin Ver</Text>
+            <Text className="text-white font-semibold">{t('inviteToRoom.grantPermission')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -268,26 +270,26 @@ export default function InviteToRoomScreen() {
           {loading ? (
             <View className="py-12 items-center">
               <ActivityIndicator size="large" color={colors.primary} />
-              <Text className="text-sm text-muted mt-4">Yükleniyor...</Text>
+              <Text className="text-sm text-muted mt-4">{t('inviteToRoom.loading')}</Text>
             </View>
           ) : lingoUsers.length === 0 && searchQuery.length >= 2 ? (
             <View className="py-12 items-center">
               <Ionicons name="search-outline" size={48} color={colors.muted} />
               <Text className="text-base font-semibold text-foreground mt-4">
-                Kullanıcı Bulunamadı
+                {t('inviteToRoom.noUsersFound')}
               </Text>
               <Text className="text-sm text-muted text-center mt-2">
-                Farklı bir arama terimi deneyin
+                {t('inviteToRoom.tryDifferentSearch')}
               </Text>
             </View>
           ) : searchQuery.length < 2 ? (
             <View className="py-12 items-center">
               <Ionicons name="people-outline" size={48} color={colors.muted} />
               <Text className="text-base font-semibold text-foreground mt-4">
-                Kullanıcı Ara
+                {t('inviteToRoom.searchUsers')}
               </Text>
               <Text className="text-sm text-muted text-center mt-2 px-8">
-                Kullanıcı adı veya telefon numarası ile arama yapın
+                {t('inviteToRoom.searchDescription')}
               </Text>
             </View>
           ) : (
@@ -348,7 +350,7 @@ export default function InviteToRoomScreen() {
                         <Text className="text-xs text-muted">{user.phoneNumber}</Text>
                       )}
                       {alreadyInRoom && (
-                        <Text className="text-xs text-primary">Zaten odada</Text>
+                        <Text className="text-xs text-primary">{t('inviteToRoom.alreadyInRoom')}</Text>
                       )}
                     </View>
 
@@ -407,7 +409,7 @@ export default function InviteToRoomScreen() {
               <>
                 <Ionicons name="person-add" size={20} color="#ffffff" />
                 <Text className="text-white font-bold text-base">
-                  {selectedUsers.size} Kişiyi Davet Et
+                  {t('inviteToRoom.inviteButton').replace('{count}', selectedUsers.size.toString())}
                 </Text>
               </>
             )}

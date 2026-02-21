@@ -6,6 +6,7 @@ import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Platform } from "react-native";
 import { useColors } from "@/hooks/use-colors";
+import { useI18n } from "@/hooks/use-i18n";
 import { trpc } from "@/lib/trpc";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -54,6 +55,7 @@ function ProfileTabIcon({ color, focused }: { color: string; focused: boolean })
 
 export default function TabLayout() {
   const colors = useColors();
+  const { t } = useI18n();
   const insets = useSafeAreaInsets();
   const bottomPadding = Platform.OS === "web" ? 12 : Math.max(insets.bottom, 8);
   const tabBarHeight = 70 + bottomPadding;
@@ -83,7 +85,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Ana Sayfa",
+          title: t('tabs.home'),
           tabBarIcon: ({ color, focused }) => (
             <IconSymbol 
               size={26} 
@@ -96,7 +98,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="chats"
         options={{
-          title: "Sohbetler",
+          title: t('tabs.chats'),
           tabBarIcon: ({ color, focused }) => (
             <IconSymbol 
               size={26} 
@@ -109,7 +111,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="groups"
         options={{
-          title: "Grup",
+          title: t('tabs.groups'),
           tabBarIcon: ({ color, focused }) => (
             <IconSymbol 
               size={26} 
@@ -122,7 +124,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profil",
+          title: t('tabs.profile'),
           tabBarIcon: ({ color, focused }) => <ProfileTabIcon color={color} focused={focused} />,
         }}
       />

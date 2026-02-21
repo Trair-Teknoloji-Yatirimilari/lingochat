@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { View, Text, ScrollView, Pressable, SafeAreaView } from "react-native";
 import { useRouter } from "expo-router";
 import { useColors } from "@/hooks/use-colors";
+import { useI18n } from "@/hooks/use-i18n";
 
 const LANGUAGES = [
   { code: "tr", name: "Türkçe", flag: "🇹🇷" },
@@ -21,6 +22,7 @@ const LANGUAGES = [
 export default function LanguageSelectionScreen() {
   const router = useRouter();
   const colors = useColors();
+  const { t } = useI18n();
   const [selectedLanguage, setSelectedLanguage] = useState<string>("tr");
 
   const handleSelectLanguage = (languageCode: string) => {
@@ -38,9 +40,9 @@ export default function LanguageSelectionScreen() {
         <View className="flex-1 p-6 justify-center">
           {/* Header */}
           <View className="mb-8 items-center">
-            <Text className="text-4xl font-bold text-foreground mb-2">LingoChat</Text>
+            <Text className="text-4xl font-bold text-foreground mb-2">{t('languageSelection.title')}</Text>
             <Text className="text-base text-muted text-center">
-              Dil seçin / Select Language / Selecciona idioma
+              {t('languageSelection.subtitle')}
             </Text>
           </View>
 
@@ -88,7 +90,7 @@ export default function LanguageSelectionScreen() {
             ]}
             className="mt-8 p-4 rounded-xl items-center"
           >
-            <Text className="text-background font-bold text-lg">Devam Et / Continue</Text>
+            <Text className="text-background font-bold text-lg">{t('languageSelection.continue')}</Text>
           </Pressable>
         </View>
       </ScrollView>

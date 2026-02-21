@@ -98,12 +98,12 @@ export default function OtpLoginScreen() {
 
   const handleSendOtp = async () => {
     if (!phoneNumber.trim()) {
-      Alert.alert("Hata", "Lütfen telefon numarasını girin");
+      Alert.alert(t('common.error'), t('auth.enterPhone'));
       return;
     }
 
     if (!isValidPhoneNumber(fullPhoneNumber)) {
-      Alert.alert("Hata", "Geçersiz telefon numarası");
+      Alert.alert(t('common.error'), t('auth.invalidPhone'));
       return;
     }
 
@@ -120,18 +120,18 @@ export default function OtpLoginScreen() {
         
         // Development modunda OTP'yi göster
         if (result.otp) {
-          Alert.alert("Test Modu", `OTP Kodu: ${result.otp}\n\n${fullPhoneNumber} numarasına gönderildi`);
+          Alert.alert("Test Mode", `OTP Code: ${result.otp}\n\nSent to ${fullPhoneNumber}`);
         } else {
-          Alert.alert("Başarılı", `${fullPhoneNumber} numarasına OTP gönderildi`);
+          Alert.alert(t('common.success'), `${t('auth.otpSent')} ${fullPhoneNumber}`);
         }
       } else {
-        Alert.alert("Hata", result.message || "OTP gönderilemedi");
+        Alert.alert(t('common.error'), result.message || t('auth.otpFailed'));
       }
       
       setLoading(false);
     } catch (error) {
       console.error("[OTP] Send error:", error);
-      Alert.alert("Hata", "OTP gönderilemedi. Lütfen tekrar deneyin.");
+      Alert.alert(t('common.error'), t('auth.otpFailed'));
       setLoading(false);
     }
   };
@@ -140,7 +140,7 @@ export default function OtpLoginScreen() {
     const otpCode = otp.join("");
     
     if (otpCode.length !== 6) {
-      Alert.alert("Hata", "Lütfen 6 haneli OTP'yi girin");
+      Alert.alert(t('common.error'), t('auth.enterCode'));
       return;
     }
 
@@ -191,13 +191,13 @@ export default function OtpLoginScreen() {
           });
         }
       } else {
-        Alert.alert("Hata", result.message || "Geçersiz OTP kodu");
+        Alert.alert(t('common.error'), result.message || t('auth.invalidCode'));
       }
       
       setLoading(false);
     } catch (error) {
       console.error("[OTP] Verification error:", error);
-      Alert.alert("Hata", "OTP doğrulanamadı. Lütfen tekrar deneyin.");
+      Alert.alert(t('common.error'), t('auth.verifyFailed'));
       setLoading(false);
     }
   };
@@ -236,7 +236,7 @@ export default function OtpLoginScreen() {
                 LingoChat
               </Text>
               <Text className="text-center text-muted text-base leading-relaxed px-4">
-                Dil bariyerlerini kaldırın, dünyayla bağlantı kurun
+                {t('auth.appTagline')}
               </Text>
             </View>
 
@@ -244,7 +244,7 @@ export default function OtpLoginScreen() {
             <View className="gap-6 flex-1 justify-center px-4">
               <View>
                 <Text className="text-base font-semibold text-foreground mb-4">
-                  Telefon numaranızı girin
+                  {t('auth.enterPhone')}
                 </Text>
 
                 {/* Phone Number Input - Ülke Kodu ve Numara Yan Yana */}
@@ -302,15 +302,15 @@ export default function OtpLoginScreen() {
 
                 {/* Privacy Notice - Telefon Numarasının Hemen Altında */}
                 <Text className="text-xs text-muted text-center leading-relaxed px-2 mb-4">
-                  Devam ederek{" "}
+                  {t('auth.privacyNotice')}{" "}
                   <Text className="font-semibold" style={{ color: colors.primary }}>
-                    Gizlilik Politikası
+                    {t('auth.privacyPolicy')}
                   </Text>
-                  {" "}ve{" "}
+                  {" "}{t('auth.and')}{" "}
                   <Text className="font-semibold" style={{ color: colors.primary }}>
-                    Kullanım Şartları
+                    {t('auth.termsOfService')}
                   </Text>
-                  'nı kabul etmiş olursunuz.
+                  .
                 </Text>
               </View>
 
@@ -330,13 +330,13 @@ export default function OtpLoginScreen() {
                   </Text>
                 </View>
                 <Text className="text-xs text-muted text-center">
-                  LingoChat, TrairX Technology O.Ü şirketinin ürünüdür
+                  {t('auth.companyInfo')}
                 </Text>
               </View>
 
               {/* Info Text */}
               <Text className="text-xs text-muted text-center px-4 leading-relaxed">
-                Uluslararası ücretler uygulanabilir. Mesaj ve veri ücretleri de geçerlidir.
+                {t('auth.internationalRates')}
               </Text>
             </View>
 
@@ -351,7 +351,7 @@ export default function OtpLoginScreen() {
               {loading ? (
                 <ActivityIndicator color="#ffffff" />
               ) : (
-                <Text className="text-background font-bold text-base">Devam Et</Text>
+                <Text className="text-background font-bold text-base">{t('auth.continue')}</Text>
               )}
             </TouchableOpacity>
 
@@ -387,7 +387,7 @@ export default function OtpLoginScreen() {
                   <View className="px-6 pb-4 border-b" style={{ borderBottomColor: colors.border }}>
                     <View className="flex-row items-center justify-between">
                       <Text className="text-xl font-bold" style={{ color: colors.foreground }}>
-                        Ülke Seçin
+                        {t('auth.selectCountry')}
                       </Text>
                       <TouchableOpacity
                         onPress={() => setShowCountryPicker(false)}
@@ -480,12 +480,12 @@ export default function OtpLoginScreen() {
                 className="text-3xl font-bold text-center mb-3" 
                 style={{ color: colors.foreground }}
               >
-                Kodu Doğrulayın
+                {t('auth.verifyTitle')}
               </Text>
 
               {/* Description */}
               <Text className="text-center text-muted text-base leading-relaxed px-4">
-                {fullPhoneNumber} numarasına gönderilen 6 haneli doğrulama kodunu girin
+                {t('auth.verifyDescription')} {fullPhoneNumber}
               </Text>
             </View>
 
@@ -534,7 +534,7 @@ export default function OtpLoginScreen() {
               <View className="items-center gap-2">
                 {resendTimer > 0 ? (
                   <Text className="text-sm text-muted">
-                    Kodu tekrar gönder ({resendTimer}s)
+                    {t('auth.resendTimer')} ({resendTimer}s)
                   </Text>
                 ) : (
                   <TouchableOpacity
@@ -546,7 +546,7 @@ export default function OtpLoginScreen() {
                     className="py-2"
                   >
                     <Text className="text-sm font-semibold text-primary">
-                      Kodu tekrar gönder
+                      {t('auth.resendCode')}
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -564,7 +564,7 @@ export default function OtpLoginScreen() {
               {loading ? (
                 <ActivityIndicator color="#ffffff" />
               ) : (
-                <Text className="text-background font-bold text-base">Doğrula</Text>
+                <Text className="text-background font-bold text-base">{t('auth.verifyCode')}</Text>
               )}
             </TouchableOpacity>
           </>

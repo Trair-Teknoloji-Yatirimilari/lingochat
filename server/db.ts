@@ -251,6 +251,29 @@ export async function findUserByIdentifier(identifier: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
+// Find users by phone numbers (for contact sync)
+export async function findUsersByPhoneNumbers(phoneNumbers: string[]) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  // Clean phone numbers (remove spaces, dashes, etc.)
+  const cleanNumbers = phoneNumbers.map(num => num.replace(/[^\d+]/g, ''));
+  
+  const result = await db.select({
+    userId: users.id,
+    phoneNumber: userProfiles.phoneNumber,
+    username: userProfiles.username,
+    profilePictureUrl: userProfiles.profilePictureUrl,
+  })
+  .from(userProfiles)
+  .innerJoin(users, eq(users.id, userProfiles.userId))
+  .where(
+    or(...cleanNumbers.map(num => eq(userProfiles.phoneNumber, num)))
+  );
+  
+  return result;
+}
+
 // Media message functions
 export async function createMediaMessage(data: InsertMediaMessage) {
   const db = await getDb();

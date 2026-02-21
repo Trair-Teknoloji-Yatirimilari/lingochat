@@ -20,6 +20,7 @@ import { useColors } from "@/hooks/use-colors";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/hooks/use-auth";
 import { useGroupWebSocket } from "@/hooks/use-group-websocket";
+import { useI18n } from "@/hooks/use-i18n";
 import { MediaAttachmentMenu } from "@/components/media-attachment-menu";
 import { MediaMessageDisplay } from "@/components/media-message-display";
 import { TypingIndicator } from "@/components/typing-indicator";
@@ -60,6 +61,7 @@ export default function RoomDetailScreen() {
   const colors = useColors();
   const params = useLocalSearchParams();
   const { user } = useAuth();
+  const { t } = useI18n();
   const scrollViewRef = useRef<ScrollView>(null);
 
   const roomId = parseInt(params.roomId as string);
@@ -196,7 +198,7 @@ export default function RoomDetailScreen() {
       }
     } catch (error) {
       console.error("Send message error:", error);
-      Alert.alert("Hata", "Mesaj gönderilemedi");
+      Alert.alert(t('common.error'), t('messages.sendFailed'));
       setMessageText(tempMessage);
     } finally {
       setSending(false);
@@ -242,7 +244,7 @@ export default function RoomDetailScreen() {
       }, 100);
     } catch (error) {
       console.error("Error converting image to base64:", error);
-      Alert.alert("Hata", "Fotoğraf yüklenemedi");
+      Alert.alert(t('common.error'), t('messages.photoUploadFailed'));
     }
   };
 
@@ -295,11 +297,11 @@ export default function RoomDetailScreen() {
         await refetchMessages();
         scrollViewRef.current?.scrollToEnd({ animated: true });
       } else {
-        Alert.alert("Hata", "Medya gönderilemedi");
+        Alert.alert(t('common.error'), t('messages.mediaSendFailed'));
       }
     } catch (error) {
       console.error("Send media error:", error);
-      Alert.alert("Hata", "Medya gönderilemedi");
+      Alert.alert(t('common.error'), t('messages.mediaSendFailed'));
     } finally {
       setSending(false);
     }
@@ -307,19 +309,19 @@ export default function RoomDetailScreen() {
 
   const handleLeaveRoom = () => {
     Alert.alert(
-      "Odadan Ayrıl",
-      "Bu odadan ayrılmak istediğinize emin misiniz?",
+      t('roomDetail.leaveRoom'),
+      t('roomDetail.leaveRoomConfirm'),
       [
-        { text: "İptal", style: "cancel" },
+        { text: t('roomDetail.cancel'), style: "cancel" },
         {
-          text: "Ayrıl",
+          text: t('roomDetail.leave'),
           style: "destructive",
           onPress: async () => {
             try {
               await leaveRoomMutation.mutateAsync({ roomId });
               router.back();
             } catch (error) {
-              Alert.alert("Hata", "Odadan ayrılırken bir hata oluştu");
+              Alert.alert(t('common.error'), t('roomDetail.leaveError'));
             }
           },
         },
@@ -334,19 +336,19 @@ export default function RoomDetailScreen() {
   const handleGenerateSummary = async () => {
     if (messages.length < 5) {
       Alert.alert(
-        "Yetersiz Mesaj",
-        "Özet oluşturmak için en az 5 mesaj gereklidir."
+        t('roomDetail.insufficientMessages'),
+        t('roomDetail.insufficientMessagesDescription')
       );
       return;
     }
 
     Alert.alert(
-      "Toplantı Özeti Oluştur",
-      "AI ile toplantı özeti oluşturulsun mu? Bu işlem birkaç saniye sürebilir.",
+      t('roomDetail.generateSummary'),
+      t('roomDetail.generateSummaryConfirm'),
       [
-        { text: "İptal", style: "cancel" },
+        { text: t('roomDetail.cancel'), style: "cancel" },
         {
-          text: "Oluştur",
+          text: t('roomDetail.generate'),
           onPress: async () => {
             setGeneratingSummary(true);
             try {
@@ -356,24 +358,24 @@ export default function RoomDetailScreen() {
 
               if (result.success && result.summary) {
                 Alert.alert(
-                  "Başarılı",
-                  "Toplantı özeti oluşturuldu!",
+                  t('roomDetail.summarySuccess'),
+                  t('roomDetail.summarySuccessDescription'),
                   [
                     {
-                      text: "Görüntüle",
+                      text: t('roomDetail.view'),
                       onPress: () => {
                         router.push(`/meeting-summary?summaryId=${result.summary.id}` as any);
                       },
                     },
-                    { text: "Tamam" },
+                    { text: t('roomDetail.ok') },
                   ]
                 );
               } else {
-                Alert.alert("Hata", result.message || "Özet oluşturulamadı");
+                Alert.alert(t('common.error'), result.message || t('roomDetail.summaryError'));
               }
             } catch (error) {
               console.error("Generate summary error:", error);
-              Alert.alert("Hata", "Özet oluşturulurken bir hata oluştu");
+              Alert.alert(t('common.error'), t('roomDetail.summaryErrorDescription'));
             } finally {
               setGeneratingSummary(false);
             }
@@ -388,7 +390,7 @@ export default function RoomDetailScreen() {
       <ScreenContainer>
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text className="text-sm text-muted mt-4">Oda yükleniyor...</Text>
+          <Text className="text-sm text-muted mt-4">{t('roomDetail.loading')}</Text>
         </View>
       </ScreenContainer>
     );
@@ -400,7 +402,7 @@ export default function RoomDetailScreen() {
         <View className="flex-1 items-center justify-center p-6">
           <Ionicons name="alert-circle" size={64} color={colors.muted} />
           <Text className="text-lg font-bold text-foreground mt-4">
-            Oda Bulunamadı
+            {t('roomDetail.notFound')}
           </Text>
           <TouchableOpacity
             onPress={() => router.back()}
@@ -412,7 +414,7 @@ export default function RoomDetailScreen() {
               marginTop: 16,
             }}
           >
-            <Text className="text-white font-semibold">Geri Dön</Text>
+            <Text className="text-white font-semibold">{t('roomDetail.goBack')}</Text>
           </TouchableOpacity>
         </View>
       </ScreenContainer>
@@ -475,7 +477,7 @@ export default function RoomDetailScreen() {
                 <>
                   <Text className="text-xs text-muted">•</Text>
                   <Text className="text-xs text-muted">
-                    {participants.length} katılımcı
+                    {participants.length} {t('roomDetail.participants')}
                   </Text>
                 </>
               )}
@@ -483,7 +485,7 @@ export default function RoomDetailScreen() {
                 <>
                   <Text className="text-xs text-muted">•</Text>
                   <Text className="text-xs" style={{ color: "#22c55e" }}>
-                    Bağlı
+                    {t('roomDetail.connected')}
                   </Text>
                 </>
               )}
@@ -573,7 +575,7 @@ export default function RoomDetailScreen() {
             >
               <Ionicons name="search" size={20} color={colors.muted} />
               <TextInput
-                placeholder="Mesaj veya kullanıcı ara..."
+                placeholder={t('roomDetail.searchPlaceholder')}
                 placeholderTextColor={colors.muted}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
@@ -592,7 +594,7 @@ export default function RoomDetailScreen() {
             </View>
             {searchQuery && (
               <Text style={{ fontSize: 12, color: colors.muted, marginTop: 8 }}>
-                {filteredMessages.length} sonuç bulundu
+                {filteredMessages.length} {t('roomDetail.resultsFound')}
               </Text>
             )}
           </View>
@@ -607,7 +609,7 @@ export default function RoomDetailScreen() {
           {messagesLoading ? (
             <View className="flex-1 items-center justify-center py-12">
               <ActivityIndicator size="large" color={colors.primary} />
-              <Text className="text-sm text-muted mt-4">Mesajlar yükleniyor...</Text>
+              <Text className="text-sm text-muted mt-4">{t('roomDetail.loadingMessages')}</Text>
             </View>
           ) : messages.length === 0 ? (
             <View className="flex-1 items-center justify-center py-12">
@@ -625,10 +627,10 @@ export default function RoomDetailScreen() {
                 <Ionicons name="chatbubbles" size={40} color={colors.primary} />
               </View>
               <Text className="text-base font-semibold text-foreground mb-2">
-                Henüz Mesaj Yok
+                {t('roomDetail.noMessages')}
               </Text>
               <Text className="text-sm text-muted text-center">
-                İlk mesajı göndererek konuşmaya başlayın
+                {t('roomDetail.noMessagesDescription')}
               </Text>
             </View>
           ) : filteredMessages.length === 0 ? (
@@ -647,10 +649,10 @@ export default function RoomDetailScreen() {
                 <Ionicons name="search-outline" size={40} color={colors.muted} />
               </View>
               <Text className="text-base font-semibold text-foreground mb-2">
-                Sonuç Bulunamadı
+                {t('roomDetail.noResults')}
               </Text>
               <Text className="text-sm text-muted text-center">
-                "{searchQuery}" için mesaj bulunamadı
+                "{searchQuery}" {t('roomDetail.noResultsFor')}
               </Text>
             </View>
           ) : (
@@ -768,32 +770,32 @@ export default function RoomDetailScreen() {
                                       
                                       if (result.success) {
                                         Alert.alert(
-                                          "AI Özeti",
+                                          t('roomDetail.aiSummary'),
                                           result.summary,
                                           [
-                                            { text: "Kapat", style: "cancel" },
+                                            { text: t('roomDetail.close'), style: "cancel" },
                                             {
-                                              text: "İndir",
+                                              text: t('roomDetail.download'),
                                               onPress: async () => {
                                                 try {
                                                   const FileSystem = await import("expo-file-system/legacy");
                                                   const fileName = `ozet_${Date.now()}.txt`;
                                                   const fileUri = FileSystem.documentDirectory + fileName;
                                                   await FileSystem.writeAsStringAsync(fileUri, result.summary || "");
-                                                  Alert.alert("Başarılı", "Özet indirildi");
+                                                  Alert.alert(t('common.success'), t('roomDetail.summaryDownloaded'));
                                                 } catch (error) {
-                                                  Alert.alert("Hata", "Özet indirilemedi");
+                                                  Alert.alert(t('common.error'), t('roomDetail.summaryDownloadError'));
                                                 }
                                               },
                                             },
                                           ]
                                         );
                                       } else {
-                                        Alert.alert("Hata", result.message || "Özet oluşturulamadı");
+                                        Alert.alert(t('common.error'), result.message || t('roomDetail.summaryError'));
                                       }
                                     } catch (error) {
                                       console.error("AI summary error:", error);
-                                      Alert.alert("Hata", "Özet oluşturulurken hata oluştu");
+                                      Alert.alert(t('common.error'), t('roomDetail.summaryGenerateError'));
                                     }
                                   }}
                                 >
@@ -814,30 +816,30 @@ export default function RoomDetailScreen() {
                                         const MediaLibrary = await import("expo-media-library");
                                         const { status } = await MediaLibrary.requestPermissionsAsync();
                                         if (status !== "granted") {
-                                          Alert.alert("İzin Gerekli", "Galeriye kaydetmek için izin gereklidir");
+                                          Alert.alert(t('roomDetail.permissionRequired'), t('roomDetail.galleryPermission'));
                                           return;
                                         }
-                                        Alert.alert("İndiriliyor", "Fotoğraf galeriye kaydediliyor...");
+                                        Alert.alert(t('roomDetail.downloading'), t('roomDetail.downloadingPhoto'));
                                         const FileSystem = await import("expo-file-system/legacy");
                                         const fileUri = FileSystem.documentDirectory + `image_${Date.now()}.jpg`;
                                         const downloadResult = await FileSystem.downloadAsync(message.media.mediaUrl, fileUri);
                                         await MediaLibrary.saveToLibraryAsync(downloadResult.uri);
-                                        Alert.alert("Başarılı", "Fotoğraf galeriye kaydedildi");
+                                        Alert.alert(t('common.success'), t('roomDetail.photoSaved'));
                                       } catch (error) {
                                         console.error("Download image error:", error);
-                                        Alert.alert("Hata", "Fotoğraf kaydedilemedi");
+                                        Alert.alert(t('common.error'), t('roomDetail.photoSaveError'));
                                       }
                                     } else if (message.media.mediaType === "document") {
                                       try {
-                                        Alert.alert("İndiriliyor", "Belge indiriliyor...");
+                                        Alert.alert(t('roomDetail.downloading'), t('roomDetail.downloadingDocument'));
                                         const FileSystem = await import("expo-file-system/legacy");
                                         const fileName = message.media.fileName || `document_${Date.now()}`;
                                         const fileUri = FileSystem.documentDirectory + fileName;
                                         await FileSystem.downloadAsync(message.media.mediaUrl, fileUri);
-                                        Alert.alert("Başarılı", "Belge indirildi");
+                                        Alert.alert(t('common.success'), t('roomDetail.documentDownloaded'));
                                       } catch (error) {
                                         console.error("Download error:", error);
-                                        Alert.alert("Hata", "Belge indirilemedi");
+                                        Alert.alert(t('common.error'), t('roomDetail.documentDownloadError'));
                                       }
                                     }
                                   }}
@@ -913,7 +915,7 @@ export default function RoomDetailScreen() {
                                 opacity: 0.7,
                               }}
                             >
-                              Orijinal ({message.originalLanguage.toUpperCase()})
+                              {t('roomDetail.original')} ({message.originalLanguage.toUpperCase()})
                             </Text>
                           </View>
                           <Text
@@ -1092,13 +1094,13 @@ export default function RoomDetailScreen() {
           >
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 12, color: colors.primary, fontWeight: "600", marginBottom: 4 }}>
-                {Number(replyToMessage.senderId) === Number(user?.id) ? "Kendinize" : replyToMessage.senderUsername || `User ${replyToMessage.senderId}`}
+                {Number(replyToMessage.senderId) === Number(user?.id) ? t('roomDetail.you') : replyToMessage.senderUsername || `User ${replyToMessage.senderId}`}
               </Text>
               <Text
                 style={{ fontSize: 14, color: colors.foreground }}
                 numberOfLines={2}
               >
-                {replyToMessage.translatedText || replyToMessage.originalText || "Medya"}
+                {replyToMessage.translatedText || replyToMessage.originalText || t('roomDetail.media')}
               </Text>
             </View>
             <TouchableOpacity onPress={() => setReplyToMessage(null)}>
@@ -1140,7 +1142,7 @@ export default function RoomDetailScreen() {
               setMessageText(text);
               handleTyping();
             }}
-            placeholder="Mesajınızı yazın..."
+            placeholder={t('roomDetail.typeMessage')}
             placeholderTextColor={colors.muted}
             multiline
             maxLength={1000}
@@ -1235,10 +1237,10 @@ export default function RoomDetailScreen() {
               >
                 <View>
                   <Text style={{ fontSize: 20, fontWeight: "bold", color: colors.foreground }}>
-                    Katılımcılar
+                    {t('roomDetail.participantsTitle')}
                   </Text>
                   <Text style={{ fontSize: 14, color: colors.muted, marginTop: 2 }}>
-                    {participants?.length || 0} kişi
+                    {participants?.length || 0} {t('roomDetail.people')}
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -1277,7 +1279,7 @@ export default function RoomDetailScreen() {
                       <Ionicons name="people-outline" size={32} color={colors.muted} />
                     </View>
                     <Text style={{ fontSize: 14, color: colors.muted }}>
-                      Henüz katılımcı yok
+                      {t('roomDetail.noParticipants')}
                     </Text>
                   </View>
                 ) : (
@@ -1424,7 +1426,7 @@ export default function RoomDetailScreen() {
                 >
                   <Ionicons name="person-add" size={20} color="#ffffff" />
                   <Text style={{ fontSize: 16, fontWeight: "600", color: "#ffffff" }}>
-                    Kişi Ekle
+                    {t('roomDetail.addPerson')}
                   </Text>
                 </TouchableOpacity>
 
@@ -1432,12 +1434,12 @@ export default function RoomDetailScreen() {
                   onPress={() => {
                     setShowParticipantsModal(false);
                     Alert.alert(
-                      "Odadan Ayrıl",
-                      "Bu odadan ayrılmak istediğinize emin misiniz?",
+                      t('roomDetail.leaveRoom'),
+                      t('roomDetail.leaveRoomConfirm'),
                       [
-                        { text: "İptal", style: "cancel" },
+                        { text: t('roomDetail.cancel'), style: "cancel" },
                         {
-                          text: "Ayrıl",
+                          text: t('roomDetail.leave'),
                           style: "destructive",
                           onPress: handleLeaveRoom,
                         },
@@ -1458,7 +1460,7 @@ export default function RoomDetailScreen() {
                 >
                   <Ionicons name="exit-outline" size={20} color="#ef4444" />
                   <Text style={{ fontSize: 16, fontWeight: "600", color: "#ef4444" }}>
-                    Odadan Çık
+                    {t('roomDetail.exitRoom')}
                   </Text>
                 </TouchableOpacity>
               </View>

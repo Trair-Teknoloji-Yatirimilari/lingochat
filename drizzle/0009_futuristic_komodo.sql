@@ -1,0 +1,1 @@
+ALTER TABLE "userProfiles" ADD COLUMN "whoCanMessageMe" varchar(20) DEFAULT 'contacts' NOT NULL;
