@@ -32,7 +32,7 @@ export async function sendOTP(phoneNumber: string): Promise<string> {
   });
 
   // Prepare SMS message
-  const message = `LingoChat verification code: ${otp}. Valid for 10 minutes.`;
+  const message = `LingoChat dogrulama kodu: ${otp}. 10 dakika gecerlidir.`;
 
   // Send SMS via Twilio
   if (twilioClient) {
