@@ -13,6 +13,12 @@ const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
 const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER;
 
+// Debug: Log Twilio credentials on startup
+console.log("[OTP] SMS Provider:", SMS_PROVIDER);
+console.log("[OTP] Twilio Account SID:", TWILIO_ACCOUNT_SID ? `${TWILIO_ACCOUNT_SID.substring(0, 10)}...` : "NOT SET");
+console.log("[OTP] Twilio Auth Token:", TWILIO_AUTH_TOKEN ? "SET" : "NOT SET");
+console.log("[OTP] Twilio Phone:", TWILIO_PHONE_NUMBER || "NOT SET");
+
 // NetGSM credentials
 const NETGSM_USERNAME = process.env.NETGSM_USERNAME;
 const NETGSM_PASSWORD = process.env.NETGSM_PASSWORD;
