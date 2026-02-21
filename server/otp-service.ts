@@ -2,12 +2,88 @@ import { getDb } from "./db";
 import { otpCodes, phoneVerifications, users, userProfiles } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
 
+// SMS Provider types
+type SMSProvider = "twilio" | "netgsm" | "console";
+
+// Get SMS provider from environment
+const SMS_PROVIDER = (process.env.SMS_PROVIDER || "console") as SMSProvider;
+
+// Twilio credentials
+const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
+const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
+const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER;
+
+// NetGSM credentials
+const NETGSM_USERNAME = process.env.NETGSM_USERNAME;
+const NETGSM_PASSWORD = process.env.NETGSM_PASSWORD;
+const NETGSM_HEADER = process.env.NETGSM_HEADER || "LINGOCHAT";
+
 // Generate random 6-digit OTP
 export function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// Send OTP to phone number (mock implementation)
+// Send SMS via Twilio
+async function sendViaTwilio(phoneNumber: string, message: string): Promise<void> {
+  if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_PHONE_NUMBER) {
+    throw new Error("Twilio credentials not configured");
+  }
+
+  const url = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
+  const auth = Buffer.from(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString("base64");
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${auth}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({
+      To: phoneNumber,
+      From: TWILIO_PHONE_NUMBER,
+      Body: message,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Twilio SMS failed: ${error}`);
+  }
+
+  console.log(`[OTP] SMS sent via Twilio to ${phoneNumber}`);
+}
+
+// Send SMS via NetGSM
+async function sendViaNetGSM(phoneNumber: string, message: string): Promise<void> {
+  if (!NETGSM_USERNAME || !NETGSM_PASSWORD) {
+    throw new Error("NetGSM credentials not configured");
+  }
+
+  // NetGSM expects phone number without + prefix
+  const cleanPhone = phoneNumber.replace(/^\+/, "");
+
+  const url = "https://api.netgsm.com.tr/sms/send/get";
+  const params = new URLSearchParams({
+    usercode: NETGSM_USERNAME,
+    password: NETGSM_PASSWORD,
+    gsmno: cleanPhone,
+    message: message,
+    msgheader: NETGSM_HEADER,
+    dil: "TR",
+  });
+
+  const response = await fetch(`${url}?${params.toString()}`);
+  const result = await response.text();
+
+  // NetGSM returns "00" or "01" for success, error codes otherwise
+  if (!result.startsWith("00") && !result.startsWith("01")) {
+    throw new Error(`NetGSM SMS failed: ${result}`);
+  }
+
+  console.log(`[OTP] SMS sent via NetGSM to ${phoneNumber}`);
+}
+
+// Send OTP to phone number
 export async function sendOTP(phoneNumber: string): Promise<string> {
   const otp = generateOTP();
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
@@ -25,8 +101,29 @@ export async function sendOTP(phoneNumber: string): Promise<string> {
     expiresAt,
   });
 
-  // In production, send via SMS service (Twilio, AWS SNS, etc.)
-  console.log(`[OTP] Sending OTP ${otp} to ${phoneNumber}`);
+  // Prepare SMS message
+  const message = `LingoChat verification code: ${otp}. Valid for 10 minutes.`;
+
+  try {
+    // Send SMS based on provider
+    switch (SMS_PROVIDER) {
+      case "twilio":
+        await sendViaTwilio(phoneNumber, message);
+        break;
+      case "netgsm":
+        await sendViaNetGSM(phoneNumber, message);
+        break;
+      case "console":
+      default:
+        console.log(`[OTP] TEST MODE - OTP ${otp} for ${phoneNumber}`);
+        console.log(`[OTP] Message: ${message}`);
+        break;
+    }
+  } catch (error) {
+    console.error(`[OTP] Failed to send SMS:`, error);
+    // In case of SMS failure, still log to console for testing
+    console.log(`[OTP] FALLBACK - OTP ${otp} for ${phoneNumber}`);
+  }
 
   return otp;
 }

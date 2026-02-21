@@ -30,10 +30,13 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         try {
           const otp = await sendOTP(input.phoneNumber);
+          // Only return OTP in development AND when SMS provider is console
+          const shouldReturnOtp = process.env.NODE_ENV === "development" && 
+                                  (!process.env.SMS_PROVIDER || process.env.SMS_PROVIDER === "console");
           return {
             success: true,
             message: "OTP sent successfully",
-            otp: process.env.NODE_ENV === "development" ? otp : undefined,
+            otp: shouldReturnOtp ? otp : undefined,
           };
         } catch (error) {
           console.error("Error sending OTP:", error);
