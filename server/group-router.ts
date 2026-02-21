@@ -280,8 +280,12 @@ export const groupRouter = router({
           const senderProfile = profileMap.get(msg.senderId);
           const mediaData = mediaMap.get(msg.id);
 
-          // If message is in user's language, no translation needed
-          if (msg.originalLanguage === userLanguage) {
+          // If message is very recent (< 2 seconds old), skip translation for speed
+          const messageAge = Date.now() - new Date(msg.createdAt).getTime();
+          const isVeryRecent = messageAge < 2000;
+
+          // If message is in user's language or very recent, no translation needed
+          if (msg.originalLanguage === userLanguage || isVeryRecent) {
             return {
               ...msg,
               translatedText: msg.originalText,

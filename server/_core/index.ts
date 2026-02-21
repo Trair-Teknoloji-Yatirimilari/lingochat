@@ -6,6 +6,7 @@ import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
+import { setupSocketIO } from "../socket-io";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
@@ -77,6 +78,9 @@ async function startServer() {
 
   server.listen(port, () => {
     console.log(`[api] server listening on port ${port}`);
+    
+    // Initialize Socket.IO
+    setupSocketIO(server);
     
     // Start auto-delete scheduler
     import("../auto-delete-scheduler").then((module) => {

@@ -240,6 +240,27 @@ export async function updateMessage(id: number, data: Partial<InsertMessage>) {
   await db.update(messages).set(data).where(eq(messages.id, id));
 }
 
+export async function findMessageByClientId(clientMessageId: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const result = await db.select().from(messages)
+    .where(eq(messages.clientMessageId, clientMessageId))
+    .limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function findGroupMessageByClientId(clientMessageId: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const { groupMessages } = await import("../drizzle/schema");
+  const result = await db.select().from(groupMessages)
+    .where(eq(groupMessages.clientMessageId, clientMessageId))
+    .limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
 // Find user by phone or email
 export async function findUserByIdentifier(identifier: string) {
   const db = await getDb();

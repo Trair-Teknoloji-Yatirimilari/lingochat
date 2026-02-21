@@ -98,6 +98,7 @@ export const messages = pgTable("messages", {
   deletedBy: integer("deletedBy"), // User ID who deleted the message
   deletedAt: timestamp("deletedAt"), // When the message was deleted
   autoDeleteAt: timestamp("autoDeleteAt"), // When message should be auto-deleted
+  clientMessageId: varchar("clientMessageId", { length: 36 }).unique(), // UUID for idempotent message processing
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
@@ -168,6 +169,7 @@ export const groupMessages = pgTable("groupMessages", {
   originalText: text("originalText").notNull(),
   originalLanguage: varchar("originalLanguage", { length: 10 }).notNull(),
   autoDeleteAt: timestamp("autoDeleteAt"), // When message should be auto-deleted
+  clientMessageId: varchar("clientMessageId", { length: 36 }).unique(), // UUID for idempotent message processing
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   isDeleted: boolean("isDeleted").default(false).notNull(),
 });
