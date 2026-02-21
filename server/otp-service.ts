@@ -12,13 +12,7 @@ const SMS_PROVIDER = (process.env.SMS_PROVIDER || "console") as SMSProvider;
 const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
 const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER;
-
-// Debug: Log Twilio credentials on startup
-console.log("[OTP] SMS Provider:", SMS_PROVIDER);
-console.log("[OTP] Twilio Account SID:", TWILIO_ACCOUNT_SID || "NOT SET");
-console.log("[OTP] Twilio Account SID Length:", TWILIO_ACCOUNT_SID?.length || 0);
-console.log("[OTP] Twilio Auth Token:", TWILIO_AUTH_TOKEN ? "SET" : "NOT SET");
-console.log("[OTP] Twilio Phone:", TWILIO_PHONE_NUMBER || "NOT SET");
+const TWILIO_MESSAGING_SERVICE_SID = process.env.TWILIO_MESSAGING_SERVICE_SID;
 
 // NetGSM credentials
 const NETGSM_USERNAME = process.env.NETGSM_USERNAME;
@@ -32,12 +26,26 @@ export function generateOTP(): string {
 
 // Send SMS via Twilio
 async function sendViaTwilio(phoneNumber: string, message: string): Promise<void> {
-  if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_PHONE_NUMBER) {
+  if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN) {
     throw new Error("Twilio credentials not configured");
   }
 
   const url = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
   const auth = Buffer.from(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString("base64");
+
+  // Prepare form data - use MessagingServiceSid if available (better delivery)
+  const params = new URLSearchParams();
+  params.append('To', phoneNumber);
+  params.append('Body', message);
+  
+  if (TWILIO_MESSAGING_SERVICE_SID) {
+    params.append('MessagingServiceSid', TWILIO_MESSAGING_SERVICE_SID);
+    console.log("[OTP] Using Messaging Service for better delivery");
+  } else if (TWILIO_PHONE_NUMBER) {
+    params.append('From', TWILIO_PHONE_NUMBER);
+  } else {
+    throw new Error("Neither MessagingServiceSid nor From number configured");
+  }
 
   const response = await fetch(url, {
     method: "POST",
@@ -45,19 +53,17 @@ async function sendViaTwilio(phoneNumber: string, message: string): Promise<void
       Authorization: `Basic ${auth}`,
       "Content-Type": "application/x-www-form-urlencoded",
     },
-    body: new URLSearchParams({
-      To: phoneNumber,
-      From: TWILIO_PHONE_NUMBER,
-      Body: message,
-    }),
+    body: params.toString(),
   });
 
+  const data = await response.json();
+
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Twilio SMS failed: ${error}`);
+    console.error("[OTP] Twilio error:", data.message || data);
+    throw new Error(`Twilio SMS failed: ${data.message || 'Unknown error'}`);
   }
 
-  console.log(`[OTP] SMS sent via Twilio to ${phoneNumber}`);
+  console.log(`[OTP] SMS sent via Twilio to ${phoneNumber}, SID: ${data.sid}`);
 }
 
 // Send SMS via NetGSM
