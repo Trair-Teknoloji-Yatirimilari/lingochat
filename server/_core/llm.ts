@@ -280,7 +280,8 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     payload.tool_choice = normalizedToolChoice;
   }
 
-  payload.max_tokens = 32768;
+  // gpt-4o-mini supports max 16384 completion tokens
+  payload.max_tokens = params.maxTokens || params.max_tokens || 4096;
 
   const normalizedResponseFormat = normalizeResponseFormat({
     responseFormat,
