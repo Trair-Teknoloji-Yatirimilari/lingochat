@@ -38,11 +38,9 @@ export async function initPostHog() {
   }
 
   try {
-    // Use new PostHog() constructor instead of initAsync
+    // PostHog initialization for React Native
     posthogClient = new PostHog(apiKey, {
       host,
-      captureApplicationLifecycleEvents: true,
-      captureDeepLinks: true,
     });
 
     console.log("[PostHog] Initialized successfully");
@@ -53,34 +51,49 @@ export async function initPostHog() {
 
 // Analytics Helper Functions
 export const analytics = {
-  // Track events
   track: (eventName: string, properties?: Record<string, any>) => {
     if (!posthogClient) return;
-    posthogClient.capture(eventName, properties);
+    try {
+      posthogClient.capture(eventName, properties);
+    } catch (error) {
+      console.error("[PostHog] Track error:", error);
+    }
   },
 
-  // Identify user
   identify: (userId: string, properties?: Record<string, any>) => {
     if (!posthogClient) return;
-    posthogClient.identify(userId, properties);
+    try {
+      posthogClient.identify(userId, properties);
+    } catch (error) {
+      console.error("[PostHog] Identify error:", error);
+    }
   },
 
-  // Screen tracking
   screen: (screenName: string, properties?: Record<string, any>) => {
     if (!posthogClient) return;
-    posthogClient.screen(screenName, properties);
+    try {
+      posthogClient.screen(screenName, properties);
+    } catch (error) {
+      console.error("[PostHog] Screen error:", error);
+    }
   },
 
-  // User properties
   setUserProperties: (properties: Record<string, any>) => {
     if (!posthogClient) return;
-    posthogClient.identify(undefined, properties);
+    try {
+      posthogClient.identify(undefined, properties);
+    } catch (error) {
+      console.error("[PostHog] Set properties error:", error);
+    }
   },
 
-  // Reset on logout
   reset: () => {
     if (!posthogClient) return;
-    posthogClient.reset();
+    try {
+      posthogClient.reset();
+    } catch (error) {
+      console.error("[PostHog] Reset error:", error);
+    }
   },
 };
 
@@ -93,13 +106,23 @@ export function captureError(error: Error, context?: Record<string, any>) {
     return;
   }
 
-  Sentry.captureException(error, {
-    extra: context,
-  });
+  try {
+    Sentry.Native.captureException(error, {
+      extra: context,
+    });
+  } catch (e) {
+    console.error("[Sentry] Failed to capture error:", e);
+  }
 }
 
 // Performance monitoring
 export function startTransaction(name: string, op: string) {
   if (__DEV__) return null;
-  return Sentry.startTransaction({ name, op });
+  try {
+    return Sentry.Native.startTransaction({ name, op });
+  } catch (error) {
+    console.error("[Sentry] Failed to start transaction:", error);
+    return null;
+  }
 }
+
