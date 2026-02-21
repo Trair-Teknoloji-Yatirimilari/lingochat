@@ -44,6 +44,7 @@ export async function sendOTP(phoneNumber: string): Promise<string> {
       });
       
       console.log(`✅ [Twilio] SMS sent to ${phoneNumber}, SID: ${result.sid}`);
+      console.log(`📱 [OTP] Code for ${phoneNumber}: ${otp}`); // TEMPORARY: Show OTP in logs
     } catch (error: any) {
       console.error(`❌ [Twilio] SMS failed:`, error.message);
       console.log(`[OTP] FALLBACK - OTP ${otp} for ${phoneNumber}`);
