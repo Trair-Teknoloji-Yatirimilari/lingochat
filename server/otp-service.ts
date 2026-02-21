@@ -5,96 +5,211 @@ import { eq } from "drizzle-orm";
 // SMS Provider types
 type SMSProvider = "twilio" | "netgsm" | "console";
 
-// Get SMS provider from environment
-const SMS_PROVIDER = (process.env.SMS_PROVIDER || "console") as SMSProvider;
-
-// Twilio credentials
-const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
-const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
-const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER;
-const TWILIO_MESSAGING_SERVICE_SID = process.env.TWILIO_MESSAGING_SERVICE_SID;
-
-// NetGSM credentials
-const NETGSM_USERNAME = process.env.NETGSM_USERNAME;
-const NETGSM_PASSWORD = process.env.NETGSM_PASSWORD;
-const NETGSM_HEADER = process.env.NETGSM_HEADER || "LINGOCHAT";
+// SMS Provider interface
+interface SMSProviderInterface {
+  sendSMS(to: string, message: string): Promise<{ success: boolean; messageId?: string; error?: string }>;
+}
 
 // Generate random 6-digit OTP
 export function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// Send SMS via Twilio
-async function sendViaTwilio(phoneNumber: string, message: string): Promise<void> {
-  if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN) {
-    throw new Error("Twilio credentials not configured");
+/**
+ * Twilio SMS Provider - Production ready implementation
+ */
+class TwilioSMSProvider implements SMSProviderInterface {
+  private accountSid: string;
+  private authToken: string;
+  private fromNumber: string | null;
+  private messagingServiceSid: string | null;
+
+  constructor(
+    accountSid: string,
+    authToken: string,
+    fromNumber?: string,
+    messagingServiceSid?: string
+  ) {
+    this.accountSid = accountSid;
+    this.authToken = authToken;
+    this.fromNumber = fromNumber || null;
+    this.messagingServiceSid = messagingServiceSid || null;
+
+    console.log("[Twilio] Initialized");
+    if (this.messagingServiceSid) {
+      console.log("[Twilio] Using Messaging Service:", this.messagingServiceSid);
+    } else if (this.fromNumber) {
+      console.log("[Twilio] Using From number:", this.fromNumber);
+    }
   }
 
-  const url = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
-  const auth = Buffer.from(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString("base64");
+  async sendSMS(to: string, message: string): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    try {
+      const url = `https://api.twilio.com/2010-04-01/Accounts/${this.accountSid}/Messages.json`;
+      
+      // Prepare form data
+      const params = new URLSearchParams();
+      params.append('To', to);
+      params.append('Body', message);
 
-  // Prepare form data - use MessagingServiceSid if available (better delivery)
-  const params = new URLSearchParams();
-  params.append('To', phoneNumber);
-  params.append('Body', message);
-  
-  if (TWILIO_MESSAGING_SERVICE_SID) {
-    params.append('MessagingServiceSid', TWILIO_MESSAGING_SERVICE_SID);
-    console.log("[OTP] Using Messaging Service for better delivery");
-  } else if (TWILIO_PHONE_NUMBER) {
-    params.append('From', TWILIO_PHONE_NUMBER);
-  } else {
-    throw new Error("Neither MessagingServiceSid nor From number configured");
+      // Use Messaging Service for better delivery (same routing as Safely)
+      if (this.messagingServiceSid) {
+        params.append('MessagingServiceSid', this.messagingServiceSid);
+      } else if (this.fromNumber) {
+        params.append('From', this.fromNumber);
+      } else {
+        return { success: false, error: 'Neither MessagingServiceSid nor From number configured' };
+      }
+
+      // Make API request
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Basic ' + Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64'),
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: params.toString(),
+      });
+
+      const data = await response.json() as any;
+
+      if (response.ok) {
+        console.log(`✅ [Twilio] SMS sent successfully to ${to}, SID: ${data.sid}`);
+        return { success: true, messageId: data.sid };
+      } else {
+        console.error(`❌ [Twilio] SMS failed: ${data.message}`);
+        return { success: false, error: data.message };
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`❌ [Twilio] SMS error: ${errorMessage}`);
+      return { success: false, error: errorMessage };
+    }
   }
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${auth}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: params.toString(),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    console.error("[OTP] Twilio error:", data.message || data);
-    throw new Error(`Twilio SMS failed: ${data.message || 'Unknown error'}`);
-  }
-
-  console.log(`[OTP] SMS sent via Twilio to ${phoneNumber}, SID: ${data.sid}`);
 }
 
-// Send SMS via NetGSM
-async function sendViaNetGSM(phoneNumber: string, message: string): Promise<void> {
-  if (!NETGSM_USERNAME || !NETGSM_PASSWORD) {
-    throw new Error("NetGSM credentials not configured");
+/**
+ * NetGSM SMS Provider
+ */
+class NetgsmSMSProvider implements SMSProviderInterface {
+  private username: string;
+  private password: string;
+  private header: string;
+
+  constructor(username: string, password: string, header: string) {
+    this.username = username;
+    this.password = password;
+    this.header = header;
+    console.log("[NetGSM] Initialized");
   }
 
-  // NetGSM expects phone number without + prefix
-  const cleanPhone = phoneNumber.replace(/^\+/, "");
+  async sendSMS(to: string, message: string): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    try {
+      // NetGSM expects phone number without + prefix
+      const cleanNumber = to.replace(/^\+/, '');
 
-  const url = "https://api.netgsm.com.tr/sms/send/get";
-  const params = new URLSearchParams({
-    usercode: NETGSM_USERNAME,
-    password: NETGSM_PASSWORD,
-    gsmno: cleanPhone,
-    message: message,
-    msgheader: NETGSM_HEADER,
-    dil: "TR",
-  });
+      const url = 'https://api.netgsm.com.tr/sms/send/get';
+      const params = new URLSearchParams({
+        usercode: this.username,
+        password: this.password,
+        gsmno: cleanNumber,
+        message: message,
+        msgheader: this.header,
+      });
 
-  const response = await fetch(`${url}?${params.toString()}`);
-  const result = await response.text();
+      const response = await fetch(`${url}?${params.toString()}`, {
+        method: 'GET',
+      });
 
-  // NetGSM returns "00" or "01" for success, error codes otherwise
-  if (!result.startsWith("00") && !result.startsWith("01")) {
-    throw new Error(`NetGSM SMS failed: ${result}`);
+      const responseText = await response.text();
+
+      // NetGSM returns "00" or "01" for success
+      if (responseText.startsWith('00') || responseText.startsWith('01')) {
+        const messageId = responseText.split(' ')[1] || responseText;
+        console.log(`✅ [NetGSM] SMS sent successfully to ${to}, ID: ${messageId}`);
+        return { success: true, messageId };
+      } else {
+        const errorMap: { [key: string]: string } = {
+          '20': 'Invalid message content',
+          '30': 'Invalid username or password',
+          '40': 'Invalid message header',
+          '50': 'Invalid phone number',
+          '51': 'Insufficient credits',
+          '70': 'Invalid parameters',
+        };
+        const error = errorMap[responseText] || `NetGSM error code: ${responseText}`;
+        console.error(`❌ [NetGSM] SMS failed: ${error}`);
+        return { success: false, error };
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`❌ [NetGSM] SMS error: ${errorMessage}`);
+      return { success: false, error: errorMessage };
+    }
   }
-
-  console.log(`[OTP] SMS sent via NetGSM to ${phoneNumber}`);
 }
+
+/**
+ * Mock SMS Provider for development
+ */
+class MockSMSProvider implements SMSProviderInterface {
+  async sendSMS(to: string, message: string): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    console.log(`📨 [MOCK SMS] To: ${to}`);
+    console.log(`📨 [MOCK SMS] Message: ${message}`);
+    
+    // Simulate SMS sending delay
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    const messageId = `mock_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return { success: true, messageId };
+  }
+}
+
+/**
+ * Initialize SMS provider based on environment configuration
+ */
+function initializeSMSProvider(): SMSProviderInterface {
+  const providerType = (process.env.SMS_PROVIDER || "console") as SMSProvider;
+
+  switch (providerType.toLowerCase()) {
+    case 'twilio': {
+      const twilioSid = process.env.TWILIO_ACCOUNT_SID;
+      const twilioToken = process.env.TWILIO_AUTH_TOKEN;
+      const twilioNumber = process.env.TWILIO_PHONE_NUMBER;
+      const twilioMsgSvcSid = process.env.TWILIO_MESSAGING_SERVICE_SID;
+
+      if (!twilioSid || !twilioToken) {
+        console.warn('⚠️  Twilio credentials not configured, falling back to mock provider');
+        return new MockSMSProvider();
+      }
+
+      console.log('📱 SMS Service initialized with Twilio provider');
+      return new TwilioSMSProvider(twilioSid, twilioToken, twilioNumber, twilioMsgSvcSid);
+    }
+
+    case 'netgsm': {
+      const netgsmUser = process.env.NETGSM_USERNAME;
+      const netgsmPass = process.env.NETGSM_PASSWORD;
+      const netgsmHeader = process.env.NETGSM_HEADER || 'LINGOCHAT';
+
+      if (!netgsmUser || !netgsmPass) {
+        console.warn('⚠️  NetGSM credentials not configured, falling back to mock provider');
+        return new MockSMSProvider();
+      }
+
+      console.log('📱 SMS Service initialized with NetGSM provider');
+      return new NetgsmSMSProvider(netgsmUser, netgsmPass, netgsmHeader);
+    }
+
+    case 'console':
+    default:
+      console.log('📱 SMS Service initialized with Mock provider (development mode)');
+      return new MockSMSProvider();
+  }
+}
+
+// Initialize provider once
+const smsProvider = initializeSMSProvider();
 
 // Send OTP to phone number
 export async function sendOTP(phoneNumber: string): Promise<string> {
@@ -117,23 +232,11 @@ export async function sendOTP(phoneNumber: string): Promise<string> {
   // Prepare SMS message
   const message = `LingoChat verification code: ${otp}. Valid for 10 minutes.`;
 
-  try {
-    // Send SMS based on provider
-    switch (SMS_PROVIDER) {
-      case "twilio":
-        await sendViaTwilio(phoneNumber, message);
-        break;
-      case "netgsm":
-        await sendViaNetGSM(phoneNumber, message);
-        break;
-      case "console":
-      default:
-        console.log(`[OTP] TEST MODE - OTP ${otp} for ${phoneNumber}`);
-        console.log(`[OTP] Message: ${message}`);
-        break;
-    }
-  } catch (error) {
-    console.error(`[OTP] Failed to send SMS:`, error);
+  // Send SMS using provider
+  const result = await smsProvider.sendSMS(phoneNumber, message);
+
+  if (!result.success) {
+    console.error(`[OTP] Failed to send SMS: ${result.error}`);
     // In case of SMS failure, still log to console for testing
     console.log(`[OTP] FALLBACK - OTP ${otp} for ${phoneNumber}`);
   }
