@@ -289,6 +289,14 @@ export default {
     rateAppMessage: 'You can rate on the App Store',
     shareAppMessage: 'Share LingoChat with your friends!',
     unknown: 'Unknown',
+    profileUpdated: 'Profile updated successfully',
+    enterUsername: 'Enter your username',
+    usernameMinLength: 'Username must be at least 3 characters',
+    usernameMaxLength: 'Username must be at most 20 characters',
+    usernameInvalidChars: 'Username can only contain letters, numbers and underscores',
+    usernameTaken: 'This username is already taken',
+    usernameHelp: '3-20 characters, letters, numbers and underscores only',
+    phoneNotEditable: 'Phone number cannot be changed',
     
     autoDelete: {
       title: 'Auto-Delete Messages',

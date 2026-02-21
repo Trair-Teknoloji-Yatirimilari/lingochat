@@ -66,7 +66,6 @@ const config: ExpoConfig = {
   },
   plugins: [
     "expo-router",
-    "sentry-expo",
     [
       "expo-audio",
       {

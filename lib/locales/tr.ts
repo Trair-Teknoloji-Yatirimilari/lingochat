@@ -289,6 +289,14 @@ export default {
     rateAppMessage: 'App Store\'da değerlendirebilirsiniz',
     shareAppMessage: 'LingoChat\'i arkadaşlarınızla paylaşın!',
     unknown: 'Bilinmiyor',
+    profileUpdated: 'Profil başarıyla güncellendi',
+    enterUsername: 'Kullanıcı adınızı girin',
+    usernameMinLength: 'Kullanıcı adı en az 3 karakter olmalıdır',
+    usernameMaxLength: 'Kullanıcı adı en fazla 20 karakter olabilir',
+    usernameInvalidChars: 'Kullanıcı adı sadece harf, rakam ve alt çizgi içerebilir',
+    usernameTaken: 'Bu kullanıcı adı zaten kullanılıyor',
+    usernameHelp: '3-20 karakter, sadece harf, rakam ve alt çizgi',
+    phoneNotEditable: 'Telefon numarası değiştirilemez',
     
     autoDelete: {
       title: 'Mesajları Otomatik Sil',

@@ -289,6 +289,14 @@ export default {
     rateAppMessage: 'Вы можете оценить в App Store',
     shareAppMessage: 'Поделитесь LingoChat с друзьями!',
     unknown: 'Неизвестно',
+    profileUpdated: 'Профиль успешно обновлен',
+    enterUsername: 'Введите ваше имя пользователя',
+    usernameMinLength: 'Имя пользователя должно содержать не менее 3 символов',
+    usernameMaxLength: 'Имя пользователя должно содержать не более 20 символов',
+    usernameInvalidChars: 'Имя пользователя может содержать только буквы, цифры и подчеркивания',
+    usernameTaken: 'Это имя пользователя уже занято',
+    usernameHelp: '3-20 символов, только буквы, цифры и подчеркивания',
+    phoneNotEditable: 'Номер телефона нельзя изменить',
     
     autoDelete: {
       title: 'Автоудаление сообщений',
