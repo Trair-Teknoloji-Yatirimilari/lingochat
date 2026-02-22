@@ -317,30 +317,20 @@ export default function RoomDetailScreen() {
               {room.name}
             </Text>
             <View className="flex-row items-center gap-2">
-              <View
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 4,
-                  backgroundColor: connected
-                    ? "#10b981"
-                    : connecting
-                    ? "#f59e0b"
-                    : "#ef4444",
-                }}
-              />
+              <Ionicons name="key-outline" size={12} color={colors.muted} />
               <Text className="text-xs text-muted">
-                {connected
-                  ? "Connected"
-                  : connecting
-                  ? "Connecting..."
-                  : "Offline"}
+                {room.roomCode}
+              </Text>
+              <Text className="text-xs text-muted">•</Text>
+              <Ionicons name="people-outline" size={12} color={colors.muted} />
+              <Text className="text-xs text-muted">
+                {(room as any).participantCount || 0} {t("groups.participants")}
               </Text>
             </View>
           </View>
 
           <TouchableOpacity
-            onPress={handleLeaveRoom}
+            onPress={() => {/* TODO: Show participants */}}
             style={{
               backgroundColor: colors.surface,
               borderRadius: 50,
@@ -349,7 +339,33 @@ export default function RoomDetailScreen() {
               borderColor: colors.border,
             }}
           >
-            <Ionicons name="exit-outline" size={20} color={colors.primary} />
+            <Ionicons name="people-outline" size={20} color={colors.primary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => {/* TODO: Search messages */}}
+            style={{
+              backgroundColor: colors.surface,
+              borderRadius: 50,
+              padding: 10,
+              borderWidth: 1,
+              borderColor: colors.border,
+            }}
+          >
+            <Ionicons name="search-outline" size={20} color={colors.primary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => {/* TODO: AI Analysis */}}
+            style={{
+              backgroundColor: colors.surface,
+              borderRadius: 50,
+              padding: 10,
+              borderWidth: 1,
+              borderColor: colors.border,
+            }}
+          >
+            <Ionicons name="sparkles-outline" size={20} color={colors.primary} />
           </TouchableOpacity>
         </View>
 
@@ -418,11 +434,16 @@ export default function RoomDetailScreen() {
                       }}
                     >
                       <View>
+                        {!isSender && (
+                          <Text className="text-xs text-muted mb-1 font-semibold">
+                            User {item.senderId}
+                          </Text>
+                        )}
                         <Text className="text-base text-foreground">
                           {item.originalText}
                         </Text>
 
-                        {item.translatedText && (
+                        {item.translatedText && item.translatedText !== item.originalText && (
                           <View
                             style={{
                               marginTop: 6,

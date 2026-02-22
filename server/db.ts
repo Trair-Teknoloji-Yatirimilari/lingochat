@@ -123,6 +123,29 @@ export async function getUserById(id: number) {
   return result.length > 0 ? result[0] : undefined;
 }
 
+// Get room participants for push notifications
+export async function getRoomParticipants(roomId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const { groupParticipants } = await import("../drizzle/schema");
+  const { and, isNull } = await import("drizzle-orm");
+  
+  const result = await db
+    .select({
+      userId: groupParticipants.userId,
+    })
+    .from(groupParticipants)
+    .where(
+      and(
+        eq(groupParticipants.roomId, roomId),
+        isNull(groupParticipants.leftAt)
+      )
+    );
+  
+  return result;
+}
+
 // User Profile queries
 export async function createUserProfile(data: InsertUserProfile) {
   const db = await getDb();

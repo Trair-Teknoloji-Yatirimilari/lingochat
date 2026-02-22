@@ -155,7 +155,16 @@ export const groupRouter = router({
   getRoom: protectedProcedure
     .input(z.object({ roomId: z.number() }))
     .query(async ({ input }) => {
-      return db.getGroupRoom(input.roomId);
+      const room = await db.getGroupRoom(input.roomId);
+      if (!room) return null;
+      
+      // Get participant count
+      const participantCount = await db.getActiveParticipantsCount(input.roomId);
+      
+      return {
+        ...room,
+        participantCount,
+      };
     }),
 
   // Leave room
