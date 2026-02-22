@@ -890,4 +890,235 @@ SADECE JSON döndür, başka açıklama ekleme.`;
         };
       }
     }),
+
+  // MODERATOR ACTIONS
+
+  // Kick user from room (remove participant)
+  kickUser: protectedProcedure
+    .input(
+      z.object({
+        roomId: z.number(),
+        userId: z.number(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Check if requester is a moderator
+      const requester = await db.getGroupParticipant(input.roomId, ctx.user.id);
+      if (!requester || !requester.isModerator || requester.leftAt) {
+        return { success: false, message: "Bu işlem için moderatör yetkisi gerekli" };
+      }
+
+      // Cannot kick yourself
+      if (ctx.user.id === input.userId) {
+        return { success: false, message: "Kendinizi odadan çıkaramazsınız" };
+      }
+
+      // Check if target user is in the room
+      const targetUser = await db.getGroupParticipant(input.roomId, input.userId);
+      if (!targetUser || targetUser.leftAt) {
+        return { success: false, message: "Kullanıcı bu odada değil" };
+      }
+
+      // Remove user from room
+      await db.leaveGroupRoom(input.roomId, input.userId);
+
+      return { success: true, message: "Kullanıcı odadan çıkarıldı" };
+    }),
+
+  // Ban user from room (prevent re-entry)
+  banUser: protectedProcedure
+    .input(
+      z.object({
+        roomId: z.number(),
+        userId: z.number(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Check if requester is a moderator
+      const requester = await db.getGroupParticipant(input.roomId, ctx.user.id);
+      if (!requester || !requester.isModerator || requester.leftAt) {
+        return { success: false, message: "Bu işlem için moderatör yetkisi gerekli" };
+      }
+
+      // Cannot ban yourself
+      if (ctx.user.id === input.userId) {
+        return { success: false, message: "Kendinizi engelleyemezsiniz" };
+      }
+
+      // Check if target user is in the room
+      const targetUser = await db.getGroupParticipant(input.roomId, input.userId);
+      if (!targetUser) {
+        return { success: false, message: "Kullanıcı bu odada değil" };
+      }
+
+      // Ban user (this will be implemented in db.ts)
+      await db.banUserFromRoom(input.roomId, input.userId);
+
+      return { success: true, message: "Kullanıcı engellendi" };
+    }),
+
+  // Unban user from room
+  unbanUser: protectedProcedure
+    .input(
+      z.object({
+        roomId: z.number(),
+        userId: z.number(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Check if requester is a moderator
+      const requester = await db.getGroupParticipant(input.roomId, ctx.user.id);
+      if (!requester || !requester.isModerator || requester.leftAt) {
+        return { success: false, message: "Bu işlem için moderatör yetkisi gerekli" };
+      }
+
+      // Unban user
+      await db.unbanUserFromRoom(input.roomId, input.userId);
+
+      return { success: true, message: "Kullanıcının engeli kaldırıldı" };
+    }),
+
+  // Make user moderator
+  makeModerator: protectedProcedure
+    .input(
+      z.object({
+        roomId: z.number(),
+        userId: z.number(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Check if requester is a moderator
+      const requester = await db.getGroupParticipant(input.roomId, ctx.user.id);
+      if (!requester || !requester.isModerator || requester.leftAt) {
+        return { success: false, message: "Bu işlem için moderatör yetkisi gerekli" };
+      }
+
+      // Check if target user is in the room
+      const targetUser = await db.getGroupParticipant(input.roomId, input.userId);
+      if (!targetUser || targetUser.leftAt) {
+        return { success: false, message: "Kullanıcı bu odada değil" };
+      }
+
+      if (targetUser.isModerator) {
+        return { success: false, message: "Kullanıcı zaten moderatör" };
+      }
+
+      // Make moderator
+      await db.updateParticipantModeratorStatus(input.roomId, input.userId, true);
+
+      return { success: true, message: "Kullanıcı moderatör yapıldı" };
+    }),
+
+  // Remove moderator status
+  removeModerator: protectedProcedure
+    .input(
+      z.object({
+        roomId: z.number(),
+        userId: z.number(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Check if requester is a moderator
+      const requester = await db.getGroupParticipant(input.roomId, ctx.user.id);
+      if (!requester || !requester.isModerator || requester.leftAt) {
+        return { success: false, message: "Bu işlem için moderatör yetkisi gerekli" };
+      }
+
+      // Cannot remove your own moderator status
+      if (ctx.user.id === input.userId) {
+        return { success: false, message: "Kendi moderatörlüğünüzü kaldıramazsınız" };
+      }
+
+      // Check if target user is in the room
+      const targetUser = await db.getGroupParticipant(input.roomId, input.userId);
+      if (!targetUser || targetUser.leftAt) {
+        return { success: false, message: "Kullanıcı bu odada değil" };
+      }
+
+      if (!targetUser.isModerator) {
+        return { success: false, message: "Kullanıcı zaten moderatör değil" };
+      }
+
+      // Remove moderator status
+      await db.updateParticipantModeratorStatus(input.roomId, input.userId, false);
+
+      return { success: true, message: "Kullanıcının moderatörlüğü kaldırıldı" };
+    }),
+
+  // Mute user (prevent sending messages)
+  muteUser: protectedProcedure
+    .input(
+      z.object({
+        roomId: z.number(),
+        userId: z.number(),
+        duration: z.number().optional(), // Duration in minutes, null for permanent
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Check if requester is a moderator
+      const requester = await db.getGroupParticipant(input.roomId, ctx.user.id);
+      if (!requester || !requester.isModerator || requester.leftAt) {
+        return { success: false, message: "Bu işlem için moderatör yetkisi gerekli" };
+      }
+
+      // Cannot mute yourself
+      if (ctx.user.id === input.userId) {
+        return { success: false, message: "Kendinizi susturamaz sınız" };
+      }
+
+      // Check if target user is in the room
+      const targetUser = await db.getGroupParticipant(input.roomId, input.userId);
+      if (!targetUser || targetUser.leftAt) {
+        return { success: false, message: "Kullanıcı bu odada değil" };
+      }
+
+      // Calculate mute end time
+      const muteUntil = input.duration 
+        ? new Date(Date.now() + input.duration * 60 * 1000)
+        : null; // null means permanent
+
+      // Mute user
+      await db.muteUserInRoom(input.roomId, input.userId, muteUntil);
+
+      return { 
+        success: true, 
+        message: input.duration 
+          ? `Kullanıcı ${input.duration} dakika susturuldu`
+          : "Kullanıcı kalıcı olarak susturuldu"
+      };
+    }),
+
+  // Unmute user
+  unmuteUser: protectedProcedure
+    .input(
+      z.object({
+        roomId: z.number(),
+        userId: z.number(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Check if requester is a moderator
+      const requester = await db.getGroupParticipant(input.roomId, ctx.user.id);
+      if (!requester || !requester.isModerator || requester.leftAt) {
+        return { success: false, message: "Bu işlem için moderatör yetkisi gerekli" };
+      }
+
+      // Unmute user
+      await db.unmuteUserInRoom(input.roomId, input.userId);
+
+      return { success: true, message: "Kullanıcının susturması kaldırıldı" };
+    }),
+
+  // Get banned users list
+  getBannedUsers: protectedProcedure
+    .input(z.object({ roomId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      // Check if requester is a moderator
+      const requester = await db.getGroupParticipant(input.roomId, ctx.user.id);
+      if (!requester || !requester.isModerator || requester.leftAt) {
+        throw new Error("Bu işlem için moderatör yetkisi gerekli");
+      }
+
+      return db.getBannedUsersInRoom(input.roomId);
+    }),
 });

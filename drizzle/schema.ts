@@ -159,6 +159,10 @@ export const groupParticipants = pgTable("groupParticipants", {
   joinedAt: timestamp("joinedAt").defaultNow().notNull(),
   leftAt: timestamp("leftAt"), // null = still in room
   isModerator: boolean("isModerator").default(false).notNull(),
+  isBanned: boolean("isBanned").default(false).notNull(),
+  bannedAt: timestamp("bannedAt"),
+  isMuted: boolean("isMuted").default(false).notNull(),
+  mutedUntil: timestamp("mutedUntil"), // null = permanent mute
 });
 
 // Group Messages table - stores group chat messages

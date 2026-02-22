@@ -616,6 +616,140 @@ export async function leaveGroupRoom(roomId: number, userId: number) {
     );
 }
 
+// Moderator action functions
+export async function banUserFromRoom(roomId: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const { groupParticipants } = await import("../drizzle/schema");
+  const { and } = await import("drizzle-orm");
+  
+  // Mark user as banned and remove from room
+  await db
+    .update(groupParticipants)
+    .set({ 
+      leftAt: new Date(),
+      isBanned: true,
+      bannedAt: new Date()
+    })
+    .where(
+      and(
+        eq(groupParticipants.roomId, roomId),
+        eq(groupParticipants.userId, userId)
+      )
+    );
+}
+
+export async function unbanUserFromRoom(roomId: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const { groupParticipants } = await import("../drizzle/schema");
+  const { and } = await import("drizzle-orm");
+  
+  await db
+    .update(groupParticipants)
+    .set({ 
+      isBanned: false,
+      bannedAt: null
+    })
+    .where(
+      and(
+        eq(groupParticipants.roomId, roomId),
+        eq(groupParticipants.userId, userId)
+      )
+    );
+}
+
+export async function updateParticipantModeratorStatus(roomId: number, userId: number, isModerator: boolean) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const { groupParticipants } = await import("../drizzle/schema");
+  const { and, isNull } = await import("drizzle-orm");
+  
+  await db
+    .update(groupParticipants)
+    .set({ isModerator })
+    .where(
+      and(
+        eq(groupParticipants.roomId, roomId),
+        eq(groupParticipants.userId, userId),
+        isNull(groupParticipants.leftAt)
+      )
+    );
+}
+
+export async function muteUserInRoom(roomId: number, userId: number, muteUntil: Date | null) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const { groupParticipants } = await import("../drizzle/schema");
+  const { and, isNull } = await import("drizzle-orm");
+  
+  await db
+    .update(groupParticipants)
+    .set({ 
+      isMuted: true,
+      mutedUntil: muteUntil
+    })
+    .where(
+      and(
+        eq(groupParticipants.roomId, roomId),
+        eq(groupParticipants.userId, userId),
+        isNull(groupParticipants.leftAt)
+      )
+    );
+}
+
+export async function unmuteUserInRoom(roomId: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const { groupParticipants } = await import("../drizzle/schema");
+  const { and, isNull } = await import("drizzle-orm");
+  
+  await db
+    .update(groupParticipants)
+    .set({ 
+      isMuted: false,
+      mutedUntil: null
+    })
+    .where(
+      and(
+        eq(groupParticipants.roomId, roomId),
+        eq(groupParticipants.userId, userId),
+        isNull(groupParticipants.leftAt)
+      )
+    );
+}
+
+export async function getBannedUsersInRoom(roomId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const { groupParticipants, userProfiles } = await import("../drizzle/schema");
+  const { and } = await import("drizzle-orm");
+  
+  const result = await db
+    .select({
+      userId: groupParticipants.userId,
+      username: userProfiles.username,
+      profilePictureUrl: userProfiles.profilePictureUrl,
+      bannedAt: groupParticipants.bannedAt,
+    })
+    .from(groupParticipants)
+    .innerJoin(userProfiles, eq(groupParticipants.userId, userProfiles.userId))
+    .where(
+      and(
+        eq(groupParticipants.roomId, roomId),
+        eq(groupParticipants.isBanned, true)
+      )
+    );
+  
+  return result;
+}
+
 // Group Message functions
 export async function createGroupMessage(data: any) {
   const db = await getDb();

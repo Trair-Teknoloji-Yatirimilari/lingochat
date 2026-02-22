@@ -654,6 +654,14 @@ export default function RoomDetailScreen() {
           visible={showParticipantsModal}
           roomId={roomId_num}
           onClose={() => setShowParticipantsModal(false)}
+          onAddParticipants={() => {
+            setShowParticipantsModal(false);
+            router.push(`/invite-to-room?roomId=${roomId_num}`);
+          }}
+          onLeaveRoom={() => {
+            setShowParticipantsModal(false);
+            handleLeaveRoom();
+          }}
         />
       </ScreenContainer>
     </KeyboardAvoidingView>
