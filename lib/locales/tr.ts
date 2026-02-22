@@ -216,6 +216,12 @@ export default {
     documentDownloading: 'Belge indiriliyor...',
     documentDownloaded: 'Belge indirildi',
     documentDownloadFailed: 'Belge indirilemedi',
+    searchMessages: 'Mesaj Ara',
+    searchPlaceholder: 'Mesajlarda ara...',
+    searchHint: 'Aramak için en az 2 karakter yazın',
+    noResults: 'Sonuç bulunamadı',
+    deleteMessage: 'Mesajı Sil',
+    deleteMessageConfirm: 'Bu mesajı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.',
   },
   
   // Groups
@@ -240,6 +246,10 @@ export default {
     autoTranslationDescription: 'Herkes kendi dilinde konuşur ve okur',
     securePrivate: 'Güvenli ve Özel',
     securePrivateDescription: 'Tüm mesajlarınız şifrelenmiş ve güvenlidir',
+    moderator: 'Moderatör',
+    joinedAt: 'Katıldı',
+    noParticipants: 'Katılımcı yok',
+    generateSummaryConfirm: 'AI toplantı özeti oluşturulsun mu? Bu birkaç saniye sürebilir.',
   },
   
   // Profile

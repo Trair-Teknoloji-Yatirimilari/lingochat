@@ -61,6 +61,8 @@ export default function RoomDetailScreen() {
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
   const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null);
   const [showMediaMenu, setShowMediaMenu] = useState(false);
+  const [showParticipantsModal, setShowParticipantsModal] = useState(false);
+  const [showSearchModal, setShowSearchModal] = useState(false);
   
   const flatListRef = useRef<FlatList>(null);
   const typingTimeoutRef = useRef<any>(null);
@@ -96,6 +98,7 @@ export default function RoomDetailScreen() {
 
   const userProfileQuery = trpc.profile.get.useQuery();
   const leaveRoomMutation = trpc.groups.leaveRoom.useMutation();
+  const generateSummaryMutation = trpc.groups.generateSummary.useMutation();
 
   // Initialize messages from query
   useEffect(() => {
@@ -334,7 +337,7 @@ export default function RoomDetailScreen() {
           </View>
 
           <TouchableOpacity
-            onPress={() => {/* TODO: Show participants */}}
+            onPress={() => setShowParticipantsModal(true)}
             style={{
               backgroundColor: colors.surface,
               borderRadius: 50,
@@ -347,7 +350,7 @@ export default function RoomDetailScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => {/* TODO: Search messages */}}
+            onPress={() => setShowSearchModal(true)}
             style={{
               backgroundColor: colors.surface,
               borderRadius: 50,
@@ -360,7 +363,31 @@ export default function RoomDetailScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => {/* TODO: AI Analysis */}}
+            onPress={() => {
+              // Generate AI summary and navigate to summary screen
+              Alert.alert(
+                t("messages.aiSummary"),
+                t("groups.generateSummaryConfirm"),
+                [
+                  { text: t("common.cancel"), style: "cancel" },
+                  {
+                    text: t("common.confirm"),
+                    onPress: async () => {
+                      try {
+                        const result = await generateSummaryMutation.mutateAsync({ roomId: roomId_num });
+                        if (result.success && result.summary) {
+                          router.push(`/meeting-summary?summaryId=${result.summary.id}`);
+                        } else {
+                          Alert.alert(t("common.error"), result.message || t("messages.summaryError"));
+                        }
+                      } catch (error) {
+                        Alert.alert(t("common.error"), t("messages.summaryError"));
+                      }
+                    },
+                  },
+                ]
+              );
+            }}
             style={{
               backgroundColor: colors.surface,
               borderRadius: 50,
@@ -567,6 +594,27 @@ export default function RoomDetailScreen() {
           visible={deleteDialogVisible}
           onConfirm={handleDeleteConfirm}
           onCancel={handleDeleteCancel}
+        />
+
+        {/* Participants Modal */}
+        <RoomParticipantsModal
+          visible={showParticipantsModal}
+          roomId={roomId_num}
+          onClose={() => setShowParticipantsModal(false)}
+        />
+
+        {/* Message Search Modal */}
+        <MessageSearchModal
+          visible={showSearchModal}
+          roomId={roomId_num}
+          onClose={() => setShowSearchModal(false)}
+          onMessageSelect={(messageId) => {
+            // Scroll to message
+            const index = messages.findIndex((m) => m.id === messageId);
+            if (index !== -1) {
+              flatListRef.current?.scrollToIndex({ index, animated: true });
+            }
+          }}
         />
       </ScreenContainer>
     </KeyboardAvoidingView>
