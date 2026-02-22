@@ -308,8 +308,102 @@ export function setupSocketIO(server: Server) {
           createdAt: savedMessage.createdAt,
         };
 
-        // Broadcast to all users in room
-        io.to(`room:${roomId}`).emit("room:message", messageData);
+        // Get sender profile for username
+        const senderProfile = await db.getUserProfile(socket.data.userId);
+        
+        // Get all connected sockets in this room
+        const socketsInRoom = await io.in(`room:${roomId}`).fetchSockets();
+        
+        // Translate and send message to each user in their language (parallel)
+        const { invokeLLM } = await import("./_core/llm");
+        
+        // Group sockets by language to avoid duplicate translations
+        const socketsByLanguage = new Map<string, typeof socketsInRoom>();
+        
+        for (const targetSocket of socketsInRoom) {
+          const targetUserId = targetSocket.data.userId;
+          const targetProfile = await db.getUserProfile(targetUserId);
+          const targetLanguage = targetProfile?.preferredLanguage || "en";
+          
+          if (!socketsByLanguage.has(targetLanguage)) {
+            socketsByLanguage.set(targetLanguage, []);
+          }
+          socketsByLanguage.get(targetLanguage)!.push(targetSocket);
+        }
+        
+        // Translate to all needed languages in parallel
+        const translationPromises = Array.from(socketsByLanguage.keys()).map(async (targetLanguage) => {
+          // Skip translation if target language is same as original
+          if (targetLanguage === (data.language || "tr")) {
+            return { targetLanguage, translatedText: data.text };
+          }
+          
+          try {
+            // Check cache first
+            const cached = await db.getGroupMessageTranslation(savedMessage.id, targetLanguage);
+            if (cached) {
+              return { targetLanguage, translatedText: cached.translatedText };
+            }
+            
+            const translationResponse = await invokeLLM({
+              messages: [
+                {
+                  role: "system",
+                  content: `You are a professional translator. Translate the following text from ${data.language || "tr"} to ${targetLanguage}. Return ONLY the translated text, nothing else.`,
+                },
+                {
+                  role: "user",
+                  content: data.text,
+                },
+              ],
+            });
+
+            const content = translationResponse.choices[0]?.message?.content;
+            const translatedText = typeof content === "string" ? content : data.text;
+            
+            // Cache the translation
+            await db.createGroupMessageTranslation({
+              messageId: savedMessage.id,
+              targetLanguage,
+              translatedText,
+            });
+            
+            return { targetLanguage, translatedText };
+          } catch (translateError) {
+            console.error(`[Socket.IO] Translation error for language ${targetLanguage}:`, translateError);
+            return { targetLanguage, translatedText: data.text };
+          }
+        });
+        
+        // Wait for all translations to complete
+        const translations = await Promise.all(translationPromises);
+        const translationMap = new Map(translations.map(t => [t.targetLanguage, t.translatedText]));
+        
+        // Send translated messages to all users
+        for (const [targetLanguage, sockets] of socketsByLanguage.entries()) {
+          const translatedText = translationMap.get(targetLanguage) || data.text;
+          
+          const translatedMessageData = {
+            id: savedMessage.id,
+            roomId,
+            senderId: socket.data.userId,
+            originalText: data.text,
+            originalLanguage: data.language || "tr",
+            translatedText,
+            targetLanguage,
+            senderUsername: senderProfile?.username,
+            senderProfilePicture: senderProfile?.profilePictureUrl,
+            createdAt: savedMessage.createdAt,
+          };
+          
+          for (const targetSocket of sockets) {
+            try {
+              targetSocket.emit("room:message", translatedMessageData);
+            } catch (userError) {
+              console.error(`[Socket.IO] Error sending to user:`, userError);
+            }
+          }
+        }
 
         // Send push notifications to offline users
         try {

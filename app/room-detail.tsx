@@ -139,6 +139,13 @@ export default function RoomDetailScreen() {
       console.log("[Room] New message received:", newMessage);
       
       setMessages((prev) => {
+        // Check if message already exists
+        const exists = prev.some(msg => msg.id === newMessage.id);
+        if (exists) {
+          console.log("[Room] Message already exists, skipping:", newMessage.id);
+          return prev;
+        }
+        
         console.log("[Room] Adding new message:", newMessage.id);
         return [...prev, newMessage].sort((a, b) => 
           new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
