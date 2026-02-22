@@ -52,7 +52,6 @@ export default function RoomDetailScreen() {
   // State management
   const [messageText, setMessageText] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
-  const [sending, setSending] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [selectedMessageForReaction, setSelectedMessageForReaction] = useState<number | null>(null);
@@ -189,50 +188,62 @@ export default function RoomDetailScreen() {
 
   // Handle send message
   const handleSendMessage = async () => {
-    if (!messageText.trim() || !roomId_num || !user || !connected) return;
+    if (!messageText.trim() || !roomId_num || !user) return;
 
+    const messageToSend = messageText.trim();
     const tempId = `temp-${Date.now()}`;
     const optimisticMessage: Message = {
       id: parseInt(tempId.replace("temp-", "")),
       roomId: roomId_num,
       senderId: user.id,
-      originalText: messageText.trim(),
+      originalText: messageToSend,
       originalLanguage: userProfileQuery.data?.preferredLanguage || "en",
-      translatedText: null,
+      translatedText: messageToSend, // Show same text initially
       targetLanguage: userProfileQuery.data?.preferredLanguage || "en",
       createdAt: new Date(),
     };
 
+    // Immediately add to UI and clear input
     setMessages((prev) => [...prev, optimisticMessage]);
     setMessageText("");
-
+    
+    // Stop typing indicator
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
-    stopTyping(roomId_num);
+    if (connected) {
+      stopTyping(roomId_num);
+    }
 
-    setSending(true);
-    try {
-      const messageId = await sendRoomMessage(roomId_num, {
-        text: messageText.trim(),
+    // Scroll to bottom
+    setTimeout(() => {
+      flatListRef.current?.scrollToEnd({ animated: true });
+    }, 100);
+
+    // Send in background (don't block UI)
+    if (connected) {
+      // Use Socket.IO if connected
+      sendRoomMessage(roomId_num, {
+        text: messageToSend,
         language: userProfileQuery.data?.preferredLanguage || "en",
-      });
-
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === optimisticMessage.id ? { ...m, id: messageId } : m
-        )
-      );
-
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-    } catch (error) {
-      console.error("[Room] Send message error:", error);
-      setMessages((prev) => prev.filter((m) => m.id !== optimisticMessage.id));
-      Alert.alert(t("common.error"), t("messages.sendFailed"));
-    } finally {
-      setSending(false);
+      })
+        .then((messageId) => {
+          // Update with real ID
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === optimisticMessage.id ? { ...m, id: messageId } : m
+            )
+          );
+        })
+        .catch((error) => {
+          console.error("[Room] Send message error:", error);
+          // Remove failed message
+          setMessages((prev) => prev.filter((m) => m.id !== optimisticMessage.id));
+          Alert.alert(t("common.error"), t("messages.sendFailed"));
+        });
+    } else {
+      // Fallback: polling will pick it up
+      console.log("[Room] Not connected, message will be sent via polling");
     }
   };
 
@@ -602,16 +613,12 @@ export default function RoomDetailScreen() {
 
           <TouchableOpacity
             onPress={handleSendMessage}
-            disabled={!messageText.trim() || sending || !connected}
+            disabled={!messageText.trim()}
             className={`p-3 rounded-full ${
-              messageText.trim() && connected ? "bg-primary" : "bg-border"
+              messageText.trim() ? "bg-primary" : "bg-border"
             }`}
           >
-            {sending ? (
-              <ActivityIndicator color="#ffffff" size="small" />
-            ) : (
-              <Ionicons name="send" size={20} color="#ffffff" />
-            )}
+            <Ionicons name="send" size={20} color="#ffffff" />
           </TouchableOpacity>
         </View>
 
