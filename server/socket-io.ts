@@ -268,6 +268,14 @@ export function setupSocketIO(server: Server) {
 
     socket.on("room:message", async (roomId, data) => {
       try {
+        console.log(`[Socket.IO] Room message received:`, {
+          roomId,
+          senderId: socket.data.userId,
+          text: data.text,
+          language: data.language,
+          hasClientMessageId: !!data.clientMessageId
+        });
+        
         // Check for duplicate message if clientMessageId is provided
         if (data.clientMessageId) {
           const existing = await db.findGroupMessageByClientId(data.clientMessageId);

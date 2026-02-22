@@ -91,7 +91,9 @@ export default function RoomDetailScreen() {
     { roomId: roomId_num, limit: 100 },
     { 
       enabled: !!roomId_num,
-      refetchInterval: 1000, // Poll every 1 second for faster updates
+      refetchOnWindowFocus: false,
+      refetchOnMount: true,
+      refetchInterval: 2000, // Poll every 2 seconds for translations
     }
   );
 
@@ -147,14 +149,17 @@ export default function RoomDetailScreen() {
         }
         
         console.log("[Room] Adding new message:", newMessage.id);
-        return [...prev, newMessage].sort((a, b) => 
+        const updated = [...prev, newMessage].sort((a, b) => 
           new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
         );
+        
+        // Scroll to bottom
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+        
+        return updated;
       });
-
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
     });
 
     return unsubscribe;
@@ -198,20 +203,8 @@ export default function RoomDetailScreen() {
     if (!messageText.trim() || !roomId_num || !user) return;
 
     const messageToSend = messageText.trim();
-    const tempId = `temp-${Date.now()}`;
-    const optimisticMessage: Message = {
-      id: parseInt(tempId.replace("temp-", "")),
-      roomId: roomId_num,
-      senderId: user.id,
-      originalText: messageToSend,
-      originalLanguage: userProfileQuery.data?.preferredLanguage || "en",
-      translatedText: messageToSend, // Show same text initially
-      targetLanguage: userProfileQuery.data?.preferredLanguage || "en",
-      createdAt: new Date(),
-    };
-
-    // Immediately add to UI and clear input
-    setMessages((prev) => [...prev, optimisticMessage]);
+    
+    // Clear input immediately
     setMessageText("");
     
     // Stop typing indicator
@@ -222,34 +215,17 @@ export default function RoomDetailScreen() {
       stopTyping(roomId_num);
     }
 
-    // Scroll to bottom
-    setTimeout(() => {
-      flatListRef.current?.scrollToEnd({ animated: true });
-    }, 100);
-
-    // Send in background (don't block UI)
+    // Send message
     if (connected) {
-      // Use Socket.IO if connected
       sendRoomMessage(roomId_num, {
         text: messageToSend,
         language: userProfileQuery.data?.preferredLanguage || "en",
       })
-        .then((messageId) => {
-          // Update with real ID
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === optimisticMessage.id ? { ...m, id: messageId } : m
-            )
-          );
-        })
         .catch((error) => {
           console.error("[Room] Send message error:", error);
-          // Remove failed message
-          setMessages((prev) => prev.filter((m) => m.id !== optimisticMessage.id));
           Alert.alert(t("common.error"), t("messages.sendFailed"));
         });
     } else {
-      // Fallback: polling will pick it up
       console.log("[Room] Not connected, message will be sent via polling");
     }
   };
