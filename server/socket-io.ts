@@ -315,6 +315,9 @@ export function setupSocketIO(server: Server) {
         try {
           const roomParticipants = await db.getRoomParticipants(roomId);
           const sender = await db.getUserById(socket.data.userId);
+          const senderProfile = await db.getUserProfile(socket.data.userId);
+          
+          console.log(`[Socket.IO] Checking push notifications for ${roomParticipants.length} participants`);
           
           for (const participant of roomParticipants) {
             // Skip sender
@@ -325,15 +328,22 @@ export function setupSocketIO(server: Server) {
               (s) => s.data.userId === participant.userId
             );
             
+            console.log(`[Socket.IO] User ${participant.userId} online status: ${isOnline}`);
+            
             // Send push notification if user is offline
             if (!isOnline) {
               const { sendPushNotification } = await import("./push-notification-service");
-              await sendPushNotification(
-                participant.userId,
-                sender?.name || "Someone",
-                data.text,
-                { type: "group_message", roomId, messageId: savedMessage.id }
-              );
+              const senderName = senderProfile?.username || sender?.name || "Someone";
+              
+              console.log(`[Socket.IO] Sending push notification to user ${participant.userId}`);
+              
+              await sendPushNotification({
+                userId: participant.userId,
+                title: senderName,
+                body: data.text,
+                data: { type: "group_message", roomId, messageId: savedMessage.id },
+                sound: "default",
+              });
             }
           }
         } catch (pushError) {
