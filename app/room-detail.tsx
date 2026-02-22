@@ -120,8 +120,18 @@ export default function RoomDetailScreen() {
       console.log("[Room] New message received:", newMessage);
       
       setMessages((prev) => {
-        const exists = prev.some((m) => m.id === newMessage.id);
-        if (exists) return prev;
+        // Check if message already exists (by ID or by content+sender+time)
+        const exists = prev.some((m) => 
+          m.id === newMessage.id || 
+          (m.senderId === newMessage.senderId && 
+           m.originalText === newMessage.originalText &&
+           Math.abs(new Date(m.createdAt).getTime() - new Date(newMessage.createdAt).getTime()) < 5000)
+        );
+        
+        if (exists) {
+          console.log("[Room] Message already exists, skipping");
+          return prev;
+        }
         
         return [...prev, newMessage].sort((a, b) => 
           new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
@@ -352,7 +362,7 @@ export default function RoomDetailScreen() {
         <FlatList
           ref={flatListRef}
           data={messages}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item, index) => `msg-${item.id}-${index}`}
           ListFooterComponent={isTyping ? <TypingIndicator /> : null}
           renderItem={({ item }) => {
             const isSender = item.senderId === user?.id;

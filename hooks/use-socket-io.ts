@@ -114,10 +114,10 @@ export function useSocketIO(): UseSocketIOReturn {
           },
           transports: Platform.OS === "ios" ? ["polling", "websocket"] : ["websocket", "polling"],
           reconnection: true,
-          reconnectionDelay: 1000,
-          reconnectionDelayMax: 30000,
+          reconnectionDelay: 500,
+          reconnectionDelayMax: 10000,
           reconnectionAttempts: Infinity,
-          timeout: 20000,
+          timeout: 10000,
         });
 
         socketRef.current = socket;
@@ -253,7 +253,7 @@ export function useSocketIO(): UseSocketIOReturn {
 
       const clientMessageId = generateUUID();
       const maxRetries = 3;
-      const timeouts = [1000, 2000, 4000]; // Exponential backoff
+      const timeouts = [500, 1000, 2000]; // Exponential backoff
 
       for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
@@ -261,7 +261,7 @@ export function useSocketIO(): UseSocketIOReturn {
           const messageId = await new Promise<number>((resolve, reject) => {
             const timeout = setTimeout(() => {
               reject(new Error("Message acknowledgment timeout"));
-            }, 5000);
+            }, 2000);
 
             // Listen for acknowledgment
             const ackHandler = (ackMessageId: number) => {
@@ -307,7 +307,7 @@ export function useSocketIO(): UseSocketIOReturn {
 
       const clientMessageId = generateUUID();
       const maxRetries = 3;
-      const timeouts = [1000, 2000, 4000]; // Exponential backoff
+      const timeouts = [500, 1000, 2000]; // Exponential backoff
 
       for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
@@ -315,7 +315,7 @@ export function useSocketIO(): UseSocketIOReturn {
           const messageId = await new Promise<number>((resolve, reject) => {
             const timeout = setTimeout(() => {
               reject(new Error("Message acknowledgment timeout"));
-            }, 5000);
+            }, 2000);
 
             // Listen for acknowledgment
             const ackHandler = (ackMessageId: number) => {
