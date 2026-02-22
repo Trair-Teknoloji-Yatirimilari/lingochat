@@ -186,6 +186,8 @@ export default {
     reply: 'Reply',
     block: 'Block',
     delete: 'Delete',
+    deleteMessage: 'Delete Message',
+    deleteMessageConfirm: 'Are you sure you want to delete this message? This action cannot be undone.',
     copy: 'Copy',
     forward: 'Forward',
     edited: 'Edited',

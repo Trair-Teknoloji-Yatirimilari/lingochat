@@ -21,6 +21,7 @@ interface MessageData {
 type MessageCallback = (message: any) => void;
 type TypingCallback = (userId: number, isTyping: boolean) => void;
 type PresenceCallback = (userId: number, isOnline: boolean) => void;
+type MessageDeletedCallback = (messageId: number) => void;
 
 // Hook return type
 interface UseSocketIOReturn {
@@ -38,6 +39,8 @@ interface UseSocketIOReturn {
   onRoomMessage: (callback: MessageCallback) => () => void;
   onTyping: (callback: TypingCallback) => () => void;
   onPresence: (callback: PresenceCallback) => () => void;
+  onMessageDeleted: (callback: MessageDeletedCallback) => () => void;
+  sendMessageDeleted: (messageId: number) => void;
   startTyping: (conversationId: number) => void;
   stopTyping: (conversationId: number) => void;
 }
@@ -78,6 +81,7 @@ export function useSocketIO(): UseSocketIOReturn {
   const roomMessageCallbacksRef = useRef<Set<MessageCallback>>(new Set());
   const typingCallbacksRef = useRef<Set<TypingCallback>>(new Set());
   const presenceCallbacksRef = useRef<Set<PresenceCallback>>(new Set());
+  const messageDeletedCallbacksRef = useRef<Set<MessageDeletedCallback>>(new Set());
   const activeConversationsRef = useRef<Set<number>>(new Set());
   const activeRoomsRef = useRef<Set<number>>(new Set());
 
@@ -94,26 +98,21 @@ export function useSocketIO(): UseSocketIOReturn {
           return;
         }
 
-        // Get server URL
-        const apiUrl = getApiBaseUrl();
-        let socketUrl = apiUrl;
-
-        // Convert HTTP to WebSocket protocol
-        if (Platform.OS === "web") {
-          socketUrl = apiUrl.replace("http://", "ws://").replace("https://", "wss://");
-        } else {
-          socketUrl = apiUrl.replace("http://", "ws://").replace("https://", "wss://");
-        }
+        // Get server URL - Socket.IO handles protocol conversion internally
+        const socketUrl = getApiBaseUrl();
 
         console.log("[Socket.IO] Connecting to:", socketUrl);
+        console.log("[Socket.IO] Platform:", Platform.OS);
+        console.log("[Socket.IO] Token present:", !!token);
         setConnectionState("connecting");
 
         // Create socket instance with exponential backoff configuration
+        // For iOS, start with polling transport to avoid WebSocket issues
         const socket = io(socketUrl, {
           auth: {
             token,
           },
-          transports: ["websocket", "polling"],
+          transports: Platform.OS === "ios" ? ["polling", "websocket"] : ["websocket", "polling"],
           reconnection: true,
           reconnectionDelay: 1000,
           reconnectionDelayMax: 30000,
@@ -210,6 +209,11 @@ export function useSocketIO(): UseSocketIOReturn {
 
         socket.on("user:offline", (userId: number) => {
           presenceCallbacksRef.current.forEach((callback) => callback(userId, false));
+        });
+
+        // Message deleted event handler
+        socket.on("message:deleted", (messageId: number) => {
+          messageDeletedCallbacksRef.current.forEach((callback) => callback(messageId));
         });
 
         // Error handler
@@ -435,6 +439,22 @@ export function useSocketIO(): UseSocketIOReturn {
     }
   }, []);
 
+  // Register message deleted callback
+  const onMessageDeleted = useCallback((callback: MessageDeletedCallback) => {
+    messageDeletedCallbacksRef.current.add(callback);
+    return () => {
+      messageDeletedCallbacksRef.current.delete(callback);
+    };
+  }, []);
+
+  // Send message deleted notification
+  const sendMessageDeleted = useCallback((messageId: number) => {
+    const socket = socketRef.current;
+    if (socket && socket.connected) {
+      socket.emit("message:deleted", messageId);
+    }
+  }, []);
+
   return {
     connected: connectionState === "connected",
     connecting: connectionState === "connecting",
@@ -450,6 +470,8 @@ export function useSocketIO(): UseSocketIOReturn {
     onRoomMessage,
     onTyping,
     onPresence,
+    onMessageDeleted,
+    sendMessageDeleted,
     startTyping,
     stopTyping,
   };

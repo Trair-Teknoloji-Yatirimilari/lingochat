@@ -1,0 +1,1005 @@
+import { useState, useEffect, useRef } from "react";
+import {
+  View,
+  Text,
+  FlatList,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  Image,
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useAuth } from "@/hooks/use-auth";
+import { trpc } from "@/lib/trpc";
+import { ScreenContainer } from "@/components/screen-container";
+import { Ionicons } from "@expo/vector-icons";
+import { useColors } from "@/hooks/use-colors";
+import { useI18n } from "@/hooks/use-i18n";
+
+
+
+import { useSocketIO } from "@/hooks/use-socket-io";
+import { MediaAttachmentMenu } from "@/components/media-attachment-menu";
+import { MediaMessageDisplay } from "@/components/media-message-display";
+import { TypingIndicator } from "@/components/typing-indicator";
+import { ReactionPicker } from "@/components/reaction-picker";
+import { Swipeable } from "react-native-gesture-handler";
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
+import type { DocumentPickerAsset } from "expo-document-picker";
+
+export default function ChatDetailScreen() {
+  const router = useRouter();
+  const colors = useColors();
+  const { t } = useI18n();
+  const { user } = useAuth();
+  const { conversationId } = useLocalSearchParams<{ conversationId: string }>();
+  const [messageText, setMessageText] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [selectedMessageForReaction, setSelectedMessageForReaction] = useState<number | null>(null);
+  const [messageReactions, setMessageReactions] = useState<Record<number, string>>({});
+  const [replyToMessage, setReplyToMessage] = useState<any | null>(null);
+  const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null);
+  const [showMediaMenu, setShowMediaMenu] = useState(false);
+  const [selectedMedia, setSelectedMedia] = useState<{
+    type: "image" | "document" | "location" | "contact";
+    data: any;
+  } | null>(null);
+  const flatListRef = useRef<FlatList>(null);
+
+  // Block user mutation
+  const blockUserMutation = trpc.blocking.blockUser.useMutation();
+
+  const conversationId_num = conversationId ? parseInt(conversationId, 10) : 0;
+
+  const messagesQuery = trpc.messages.list.useQuery(
+    { conversationId: conversationId_num, limit: 50 },
+    { enabled: !!conversationId_num }
+  );
+
+  const conversationQuery = trpc.conversations.get.useQuery(
+    { id: conversationId_num },
+    { enabled: !!conversationId_num }
+  );
+
+  const userProfileQuery = trpc.profile.get.useQuery();
+
+  // Get read receipts for messages
+  const readReceiptsQuery = trpc.readReceipts.getForConversation.useQuery(
+    { conversationId: conversationId_num },
+    { enabled: !!conversationId_num }
+  );
+
+  // Mark messages as read when viewing conversation
+  const markAsReadMutation = trpc.readReceipts.markAsRead.useMutation();
+  const generateMediaSummaryMutation = trpc.groups.generateMediaSummary.useMutation();
+
+  // WebSocket connection
+  const { sendMessageDeleted, onMessageDeleted } = useSocketIO(conversationId_num);
+
+  // Listen for message deletions from other users
+  useEffect(() => {
+    onMessageDeleted((msg: any) => {
+      console.log("Message deleted via WebSocket:", msg);
+      messagesQuery.refetch();
+    });
+  }, [onMessageDeleted, messagesQuery]);
+
+  // Mark messages as read when viewing
+  useEffect(() => {
+    const allMessages = messagesQuery.data || [];
+    const messages = allMessages.filter(
+      (msg) => !(msg.deletedBy === user?.id && msg.deletedAt)
+    );
+    
+    if (messages.length > 0 && user?.id) {
+      messages.forEach((msg) => {
+        if (msg.senderId !== user.id) {
+          markAsReadMutation.mutate({
+            messageId: msg.id,
+            conversationId: conversationId_num,
+          });
+        }
+      });
+    }
+  }, [messagesQuery.data, user?.id, conversationId_num]);
+
+  const sendMessageMutation = trpc.messages.send.useMutation({
+    onSuccess: () => {
+      messagesQuery.refetch();
+      setMessageText("");
+    },
+    onError: (error) => {
+      Alert.alert(t('common.error'), t('messages.sendFailed'));
+      console.error(error);
+    },
+  });
+
+  const handleLongPress = (messageId: number, senderId: number) => {
+    // Show reaction picker for all messages
+    setSelectedMessageForReaction(messageId);
+    setShowReactionPicker(true);
+  };
+
+  const handleReactionSelect = (emoji: string) => {
+    if (selectedMessageForReaction) {
+      setMessageReactions((prev) => ({
+        ...prev,
+        [selectedMessageForReaction]: emoji,
+      }));
+      setSelectedMessageForReaction(null);
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedMessageId) return;
+
+    if (success) {
+      setDeleteDialogVisible(false);
+      setSelectedMessageId(null);
+      messagesQuery.refetch();
+      
+      // WebSocket ile diğer kullanıcılara bildir
+      sendMessageDeleted(selectedMessageId);
+    } else {
+      Alert.alert(t('common.error'), t('messages.deleteFailed'));
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogVisible(false);
+    setSelectedMessageId(null);
+  };
+
+  const handleImageSelected = async (uri: string, type: "camera" | "gallery") => {
+    try {
+      // Convert image to base64
+      const FileSystem = await import("expo-file-system/legacy");
+      const base64 = await FileSystem.default.readAsStringAsync(uri, {
+        encoding: FileSystem.default.EncodingType.Base64,
+      });
+      
+      // Determine MIME type
+      const mimeType = uri.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
+      const dataUri = `data:${mimeType};base64,${base64}`;
+      
+      setSelectedMedia({ 
+        type: "image", 
+        data: { 
+          uri: dataUri, 
+          source: type,
+          mimeType,
+        } 
+      });
+    } catch (error) {
+      console.error("Error converting image to base64:", error);
+      Alert.alert(t('common.error'), t('messages.photoUploadFailed'));
+    }
+  };
+
+  const handleDocumentSelected = (document: DocumentPickerAsset) => {
+    setSelectedMedia({ type: "document", data: document });
+  };
+
+  const handleLocationSelected = (location: {
+    latitude: number;
+    longitude: number;
+    address?: string;
+  }) => {
+    setSelectedMedia({ type: "location", data: location });
+  };
+
+  const handleContactSelected = (contact: any) => {
+    setSelectedMedia({ type: "contact", data: contact });
+  };
+
+  const handleSendMedia = async () => {
+    if (!selectedMedia) return;
+
+    setSending(true);
+    try {
+      const sendMediaMutation = trpc.messages.sendMedia.useMutation();
+      const result = await sendMediaMutation.mutateAsync({
+        conversationId: conversationId_num,
+        mediaType: selectedMedia.type,
+        mediaData: selectedMedia.data,
+        caption: selectedMedia.type === "image" ? messageText : undefined,
+      });
+
+      if (result.success) {
+        setSelectedMedia(null);
+        setMessageText("");
+        await messagesQuery.refetch();
+      } else {
+        Alert.alert(t('common.error'), t('messages.mediaSendFailed'));
+      }
+    } catch (error) {
+      console.error("Send media error:", error);
+      Alert.alert(t('common.error'), t('messages.mediaSendFailed'));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // Simulate typing indicator
+  useEffect(() => {
+    // Randomly show typing indicator for demo
+    const interval = setInterval(() => {
+      const shouldShow = Math.random() > 0.7;
+      setIsTyping(shouldShow);
+      
+      if (shouldShow) {
+        setTimeout(() => setIsTyping(false), 3000);
+      }
+    }, 10000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleSendMessage = async () => {
+    if (!messageText.trim() || !conversationId_num || !user) return;
+
+    const conversation = conversationQuery.data;
+    if (!conversation) return;
+
+    const recipientId =
+      conversation.participant1Id === user.id
+        ? conversation.participant2Id
+        : conversation.participant1Id;
+
+    const senderLanguage = userProfileQuery.data?.preferredLanguage || "tr";
+    const recipientLanguage = "en"; // Placeholder - should come from recipient profile
+
+    setLoading(true);
+    try {
+      await sendMessageMutation.mutateAsync({
+        conversationId: conversationId_num,
+        text: messageText.trim(),
+        recipientLanguage,
+        replyToMessageId: replyToMessage?.id,
+      });
+      // Send notification to recipient
+        "New Message",
+        `${user.email}: ${messageText.trim().substring(0, 50)}...`
+      );
+      // Clear reply
+      setReplyToMessage(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (messagesQuery.isLoading || conversationQuery.isLoading) {
+    return (
+      <ScreenContainer className="justify-center items-center">
+        <ActivityIndicator size="large" color={colors.primary} />
+      </ScreenContainer>
+    );
+  }
+
+  const allMessages = messagesQuery.data || [];
+  // Silinen mesajları filtrele (sadece kendi sildiğin mesajları gizle)
+  const messages = allMessages.filter(
+    (msg) => !(msg.deletedBy === user?.id && msg.deletedAt)
+  );
+  const conversation = conversationQuery.data;
+
+  if (!conversation) {
+    return (
+      <ScreenContainer className="justify-center items-center">
+        <Text className="text-foreground">Conversation not found</Text>
+      </ScreenContainer>
+    );
+  }
+
+  const recipientId =
+    conversation.participant1Id === user?.id
+      ? conversation.participant2Id
+      : conversation.participant1Id;
+
+  return (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      className="flex-1"
+    >
+      <ScreenContainer className="p-4 gap-4" edges={["top", "left", "right"]}>
+        {/* Header */}
+        <View className="flex-row items-center gap-3">
+          <TouchableOpacity onPress={() => router.back()}>
+            <Ionicons name="chevron-back" size={28} color={colors.primary} />
+          </TouchableOpacity>
+
+          {/* Profile Picture */}
+          <View
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: colors.border,
+              justifyContent: "center",
+              alignItems: "center",
+              overflow: "hidden",
+            }}
+          >
+            <Text className="text-xl">👤</Text>
+          </View>
+
+          <View className="flex-1">
+            <Text className="text-lg font-semibold text-foreground">
+              User {recipientId}
+            </Text>
+            <Text className="text-xs text-muted">Conversation #{conversationId}</Text>
+          </View>
+
+          {/* Voice Call Button */}
+          <TouchableOpacity
+            onPress={() => Alert.alert(t('messages.voiceCall'), t('messages.voiceCallSoon'))}
+            style={{
+              backgroundColor: colors.surface,
+              borderRadius: 50,
+              padding: 10,
+              borderWidth: 1,
+              borderColor: colors.border,
+            }}
+          >
+            <Ionicons name="call" size={20} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Messages List */}
+        <FlatList
+          data={messages}
+          keyExtractor={(item) => item.id.toString()}
+          ListFooterComponent={isTyping ? <TypingIndicator /> : null}
+          renderItem={({ item }) => {
+            // Robust comparison: ensure both values are numbers and handle edge cases
+            const messageSenderId = item.senderId ? Number(item.senderId) : null;
+            const currentUserId = user?.id ? Number(user.id) : null;
+            const isSender = messageSenderId !== null && 
+                           currentUserId !== null && 
+                           messageSenderId === currentUserId;
+            
+            const messageReadReceipts = readReceiptsQuery.data?.filter(
+              (r) => r.messageId === item.id
+            ) || [];
+            const isRead = messageReadReceipts.length > 0;
+
+            // Get other user ID for blocking
+            const otherUserId = isSender 
+              ? (conversationQuery.data?.participant1Id === user?.id 
+                  ? conversationQuery.data?.participant2Id 
+                  : conversationQuery.data?.participant1Id)
+              : item.senderId;
+
+            const renderRightActions = () => (
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginRight: 8,
+                }}
+              >
+                {/* Reply Button */}
+                <TouchableOpacity
+                  onPress={() => {
+                    setReplyToMessage(item);
+                  }}
+                  style={{
+                    width: 70,
+                    height: "100%",
+                    backgroundColor: colors.primary,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    marginRight: 4,
+                  }}
+                >
+                  <Ionicons name="arrow-undo" size={24} color="#ffffff" />
+                  <Text style={{ color: "#ffffff", fontSize: 10, marginTop: 2 }}>
+                    Yanıtla
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Block Button (only for received messages) */}
+                {!isSender && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      Alert.alert(
+                        t('messages.blockUser'),
+                        t('messages.blockUserConfirm'),
+                        [
+                          { text: t('common.cancel'), style: "cancel" },
+                          {
+                            text: t('messages.block'),
+                            style: "destructive",
+                            onPress: async () => {
+                              try {
+                                await blockUserMutation.mutateAsync({
+                                  userId: otherUserId!,
+                                  reason: "Blocked by user",
+                                });
+                                Alert.alert(t('common.success'), t('messages.userBlocked'));
+                                router.back();
+                              } catch (error) {
+                                Alert.alert(t('common.error'), t('messages.blockFailed'));
+                              }
+                            },
+                          },
+                        ]
+                      );
+                    }}
+                    style={{
+                      width: 70,
+                      height: "100%",
+                      backgroundColor: "#ef4444",
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Ionicons name="ban" size={24} color="#ffffff" />
+                    <Text style={{ color: "#ffffff", fontSize: 10, marginTop: 2 }}>
+                      Engelle
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            );
+
+            const renderLeftActions = () => (
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginLeft: 8,
+                }}
+              >
+                {/* Reply Button */}
+                <TouchableOpacity
+                  onPress={() => {
+                    setReplyToMessage(item);
+                  }}
+                  style={{
+                    width: 70,
+                    height: "100%",
+                    backgroundColor: colors.primary,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    marginRight: 4,
+                  }}
+                >
+                  <Ionicons name="arrow-undo" size={24} color="#ffffff" />
+                  <Text style={{ color: "#ffffff", fontSize: 10, marginTop: 2 }}>
+                    Yanıtla
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Delete Button (only for sent messages) */}
+                {isSender && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSelectedMessageId(item.id);
+                      setDeleteDialogVisible(true);
+                    }}
+                    style={{
+                      width: 70,
+                      height: "100%",
+                      backgroundColor: "#ef4444",
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Ionicons name="trash" size={24} color="#ffffff" />
+                    <Text style={{ color: "#ffffff", fontSize: 10, marginTop: 2 }}>
+                      Sil
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            );
+
+            return (
+              <Swipeable
+                renderRightActions={isSender ? undefined : renderRightActions}
+                renderLeftActions={isSender ? renderLeftActions : undefined}
+                overshootRight={false}
+                overshootLeft={false}
+              >
+              <View
+                className={`mb-3 flex-row ${
+                  isSender ? "justify-end" : "justify-start"
+                }`}
+                style={{ 
+                  marginBottom: messageReactions[item.id] ? 28 : 12,
+                  marginLeft: isSender ? 60 : 0,
+                  marginRight: isSender ? 0 : 60,
+                }}
+              >
+                <View style={{ position: "relative", paddingBottom: messageReactions[item.id] ? 16 : 0 }}>
+                  <Pressable
+                    onLongPress={() => handleLongPress(item.id, item.senderId)}
+                    delayLongPress={500}
+                    style={{
+                      maxWidth: "95%",
+                      borderRadius: 16,
+                      overflow: "hidden",
+                      shadowColor: "#000",
+                      shadowOffset: { width: 0, height: 1 },
+                      shadowOpacity: 0.1,
+                      shadowRadius: 2,
+                      elevation: 2,
+                    }}
+                  >
+                  <LinearGradient
+                    colors={[colors.surface, colors.surface]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={{
+                      padding: 12,
+                      borderRadius: 16,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                    }}
+                  >
+                  {/* Media Display */}
+                  {(item as any).media && (
+                    <>
+                      <MediaMessageDisplay
+                        media={(item as any).media}
+                        isMyMessage={isSender}
+                      />
+                      {/* Time and Download for Media */}
+                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4 }}>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                          {/* AI Summary Button for Image/Document */}
+                          {((item as any).media.mediaType === "image" || (item as any).media.mediaType === "document") && (
+                            <TouchableOpacity
+                              onPress={async () => {
+                                try {
+                                  const result = await generateMediaSummaryMutation.mutateAsync({
+                                    mediaUrl: (item as any).media.mediaUrl,
+                                    mediaType: (item as any).media.mediaType,
+                                    fileName: (item as any).media.fileName,
+                                  });
+                                  
+                                  if (result.success) {
+                                    Alert.alert(
+                                      t('messages.aiSummary'),
+                                      result.summary,
+                                      [
+                                        { text: t('common.cancel'), style: "cancel" },
+                                        {
+                                          text: "Download",
+                                          onPress: async () => {
+                                            try {
+                                              const FileSystem = await import("expo-file-system/legacy");
+                                              const fileName = `summary_${Date.now()}.txt`;
+                                              const fileUri = FileSystem.documentDirectory + fileName;
+                                              await FileSystem.writeAsStringAsync(fileUri, result.summary || "");
+                                              Alert.alert(t('common.success'), t('messages.summaryDownloaded'));
+                                            } catch (error) {
+                                              Alert.alert(t('common.error'), t('messages.summaryDownloadFailed'));
+                                            }
+                                          },
+                                        },
+                                      ]
+                                    );
+                                  } else {
+                                    Alert.alert(t('common.error'), result.message || t('messages.summaryFailed'));
+                                  }
+                                } catch (error) {
+                                  console.error("AI summary error:", error);
+                                  Alert.alert(t('common.error'), t('messages.summaryError'));
+                                }
+                              }}
+                            >
+                              <Ionicons 
+                                name="sparkles" 
+                                size={20} 
+                                color="#1E3A8A"
+                              />
+                            </TouchableOpacity>
+                          )}
+                          {/* Download Button for Image/Document */}
+                          {((item as any).media.mediaType === "image" || (item as any).media.mediaType === "document") && (
+                            <TouchableOpacity
+                              onPress={async () => {
+                                if ((item as any).media.mediaType === "image") {
+                                  try {
+                                    const MediaLibrary = await import("expo-media-library");
+                                    const { status } = await MediaLibrary.requestPermissionsAsync();
+                                    if (status !== "granted") {
+                                      Alert.alert(t('messages.permissionRequired'), t('messages.galleryPermission'));
+                                      return;
+                                    }
+                                    Alert.alert(t('messages.downloading'), t('messages.photoSaving'));
+                                    const FileSystem = await import("expo-file-system/legacy");
+                                    const fileUri = FileSystem.documentDirectory + `image_${Date.now()}.jpg`;
+                                    const downloadResult = await FileSystem.downloadAsync((item as any).media.mediaUrl, fileUri);
+                                    await MediaLibrary.saveToLibraryAsync(downloadResult.uri);
+                                    Alert.alert(t('common.success'), t('messages.photoSaved'));
+                                  } catch (error) {
+                                    console.error("Download image error:", error);
+                                    Alert.alert(t('common.error'), t('messages.photoSaveFailed'));
+                                  }
+                                } else if ((item as any).media.mediaType === "document") {
+                                  try {
+                                    Alert.alert(t('messages.downloading'), t('messages.documentDownloading'));
+                                    const FileSystem = await import("expo-file-system/legacy");
+                                    const fileName = (item as any).media.fileName || `document_${Date.now()}`;
+                                    const fileUri = FileSystem.documentDirectory + fileName;
+                                    await FileSystem.downloadAsync((item as any).media.mediaUrl, fileUri);
+                                    Alert.alert(t('common.success'), t('messages.documentDownloaded'));
+                                  } catch (error) {
+                                    console.error("Download error:", error);
+                                    Alert.alert(t('common.error'), t('messages.documentDownloadFailed'));
+                                  }
+                                }
+                              }}
+                            >
+                              <Ionicons 
+                                name="arrow-down-circle" 
+                                size={20} 
+                                color={isSender ? "rgba(255, 255, 255, 0.7)" : colors.primary}
+                              />
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                          <Text
+                            className="text-xs text-muted"
+                          >
+                            {new Date(item.createdAt).toLocaleTimeString([], { 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })}
+                          </Text>
+                          {isSender && (
+                            <Text className={`text-xs ${isRead ? "text-green-400" : "text-muted"}`}>
+                              {isRead ? "✓✓" : "✓"}
+                            </Text>
+                          )}
+                        </View>
+                      </View>
+                    </>
+                  )}
+
+                  {/* Text Message */}
+                  {!(item as any).media && (
+                    <View>
+                      {/* Reply Preview */}
+                      {(item as any).replyTo && (
+                        <View
+                          style={{
+                            marginBottom: 8,
+                            paddingBottom: 8,
+                            borderBottomWidth: 1,
+                            borderBottomColor: colors.border + "60",
+                          }}
+                        >
+                          <View
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              gap: 4,
+                              marginBottom: 4,
+                            }}
+                          >
+                            <Ionicons 
+                              name="arrow-undo" 
+                              size={12} 
+                              color={colors.primary}
+                            />
+                            <Text
+                              style={{
+                                fontSize: 11,
+                                color: colors.primary,
+                                fontWeight: "600",
+                              }}
+                            >
+                              {(item as any).replyTo.senderId === user?.id ? "Siz" : `User ${(item as any).replyTo.senderId}`}
+                            </Text>
+                          </View>
+                          <Text
+                            style={{
+                              fontSize: 13,
+                              color: colors.muted,
+                              fontStyle: "italic",
+                            }}
+                            numberOfLines={2}
+                          >
+                            {(item as any).replyTo.originalText || "Medya"}
+                          </Text>
+                        </View>
+                      )}
+                      
+                      {/* Original Text */}
+                      <Text
+                        className="text-base text-foreground"
+                        style={{ paddingRight: 60, lineHeight: 20 }}
+                      >
+                        {item.originalText}
+                      </Text>
+                      
+                      {/* Translation */}
+                      {item.isTranslated && item.translatedText && (
+                        <View
+                          style={{
+                            marginTop: 6,
+                            paddingTop: 6,
+                            borderTopWidth: 1,
+                            borderTopColor: colors.border + "60",
+                          }}
+                        >
+                          <Text
+                            className="text-sm text-foreground opacity-80"
+                            style={{ paddingRight: 60, lineHeight: 18, fontStyle: "italic" }}
+                          >
+                            {item.translatedText}
+                          </Text>
+                        </View>
+                      )}
+                      
+                      {/* Time and Read Receipt - Bottom Right */}
+                      <View
+                        style={{
+                          position: "absolute",
+                          bottom: 0,
+                          right: 0,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        <Text
+                          className="text-xs text-muted"
+                        >
+                          {new Date(item.createdAt).toLocaleTimeString([], { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })}
+                        </Text>
+                        {isSender && (
+                          <Text className={`text-xs ${isRead ? "text-green-400" : "text-muted"}`}>
+                            {isRead ? "✓✓" : "✓"}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                  )}
+                </LinearGradient>
+              </Pressable>
+              
+              {/* Reaction Badge */}
+              {messageReactions[item.id] && (
+                <View
+                  style={{
+                    position: "absolute",
+                    bottom: -4,
+                    right: isSender ? 8 : undefined,
+                    left: isSender ? undefined : 8,
+                    backgroundColor: colors.background,
+                    borderRadius: 12,
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderWidth: 2,
+                    borderColor: colors.border,
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 4,
+                    elevation: 4,
+                  }}
+                >
+                  <Text style={{ fontSize: 16 }}>{messageReactions[item.id]}</Text>
+                </View>
+              )}
+            </View>
+          </View>
+          </Swipeable>
+            );
+          }}
+          inverted
+        />
+
+        {/* Selected Media Preview - Compact */}
+        {selectedMedia && (
+          <View
+            style={{
+              marginHorizontal: 16,
+              marginTop: 8,
+              marginBottom: 8,
+              backgroundColor: colors.surface,
+              borderRadius: 8,
+              padding: 8,
+              borderWidth: 1,
+              borderColor: colors.border,
+            }}
+          >
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center gap-2 flex-1">
+                {selectedMedia.type === "image" && (
+                  <Image
+                    source={{ uri: selectedMedia.data.uri }}
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 6,
+                    }}
+                    resizeMode="cover"
+                  />
+                )}
+                {selectedMedia.type === "document" && (
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 6,
+                      backgroundColor: colors.primary + "20",
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Ionicons name="document-text" size={20} color={colors.primary} />
+                  </View>
+                )}
+                {selectedMedia.type === "location" && (
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 6,
+                      backgroundColor: colors.primary + "20",
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Ionicons name="location" size={20} color={colors.primary} />
+                  </View>
+                )}
+                {selectedMedia.type === "contact" && (
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 6,
+                      backgroundColor: colors.primary + "20",
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Ionicons name="person" size={20} color={colors.primary} />
+                  </View>
+                )}
+                <View className="flex-1">
+                  {selectedMedia.type === "document" && (
+                    <>
+                      <Text className="text-xs font-semibold text-foreground" numberOfLines={1}>
+                        {selectedMedia.data.name}
+                      </Text>
+                      <Text className="text-xs text-muted">
+                        {(selectedMedia.data.size / 1024).toFixed(2)} KB
+                      </Text>
+                    </>
+                  )}
+                  {selectedMedia.type === "contact" && (
+                    <Text className="text-xs font-semibold text-foreground" numberOfLines={1}>
+                      {selectedMedia.data.name}
+                    </Text>
+                  )}
+                </View>
+              </View>
+              <TouchableOpacity onPress={() => setSelectedMedia(null)}>
+                <Ionicons name="close-circle" size={20} color={colors.muted} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Reply Preview */}
+        {replyToMessage && (
+          <View
+            style={{
+              marginHorizontal: 16,
+              marginBottom: 8,
+              backgroundColor: colors.surface,
+              borderLeftWidth: 4,
+              borderLeftColor: colors.primary,
+              borderRadius: 8,
+              padding: 12,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 12, color: colors.primary, fontWeight: "600", marginBottom: 4 }}>
+                {replyToMessage.senderId === user?.id ? "Kendinize" : `User ${replyToMessage.senderId}`}
+              </Text>
+              <Text
+                style={{ fontSize: 14, color: colors.foreground }}
+                numberOfLines={2}
+              >
+                {replyToMessage.originalText || "Medya"}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={() => setReplyToMessage(null)}>
+              <Ionicons name="close-circle" size={24} color={colors.muted} />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Message Input */}
+        <View className="flex-row gap-2 items-end">
+          <TouchableOpacity
+            onPress={() => setShowMediaMenu(true)}
+            className="p-3 rounded-full bg-surface border border-border"
+          >
+            <Ionicons name="add" size={20} color={colors.primary} />
+          </TouchableOpacity>
+          <View className="flex-1 flex-row items-center border border-border rounded-full px-4 py-2 bg-surface">
+            <TextInput
+              placeholder="Type a message..."
+              value={messageText}
+              onChangeText={setMessageText}
+              multiline
+              maxLength={500}
+              className="flex-1 text-foreground"
+              placeholderTextColor={colors.muted}
+            />
+          </View>
+          <TouchableOpacity
+            onPress={() => {
+              if (selectedMedia) {
+                handleSendMedia();
+              } else {
+                handleSendMessage();
+              }
+            }}
+            disabled={(!messageText.trim() && !selectedMedia) || loading}
+            className={`p-3 rounded-full ${
+              (messageText.trim() || selectedMedia) ? "bg-primary" : "bg-border"
+            }`}
+          >
+            {loading ? (
+              <ActivityIndicator color="#ffffff" />
+            ) : (
+              <Ionicons name="send" size={20} color="#ffffff" />
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Media Attachment Menu */}
+        <MediaAttachmentMenu
+          visible={showMediaMenu}
+          onClose={() => setShowMediaMenu(false)}
+          onImageSelected={handleImageSelected}
+          onDocumentSelected={handleDocumentSelected}
+          onLocationSelected={handleLocationSelected}
+          onContactSelected={handleContactSelected}
+        />
+
+        {/* Reaction Picker */}
+        <ReactionPicker
+          visible={showReactionPicker}
+          onClose={() => {
+            setShowReactionPicker(false);
+            setSelectedMessageForReaction(null);
+          }}
+          onReactionSelect={handleReactionSelect}
+        />
+
+        {/* Delete Dialog */}
+        <MessageDeleteDialog
+          onConfirm={handleDeleteConfirm}
+          onCancel={handleDeleteCancel}
+        />
+      </ScreenContainer>
+    </KeyboardAvoidingView>
+  );
+}

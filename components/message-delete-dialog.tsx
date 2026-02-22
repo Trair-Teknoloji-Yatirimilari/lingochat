@@ -1,29 +1,20 @@
-import React from "react";
-import {
-  View,
-  Text,
-  Modal,
-  Pressable,
-  ActivityIndicator,
-} from "react-native";
+import { Modal, View, Text, TouchableOpacity } from "react-native";
 import { useColors } from "@/hooks/use-colors";
+import { useI18n } from "@/hooks/use-i18n";
 
 interface MessageDeleteDialogProps {
   visible: boolean;
-  loading?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
-  message?: string;
 }
 
 export function MessageDeleteDialog({
   visible,
-  loading = false,
   onConfirm,
   onCancel,
-  message = "Bu mesajı silmek istediğinizden emin misiniz?",
 }: MessageDeleteDialogProps) {
   const colors = useColors();
+  const { t } = useI18n();
 
   return (
     <Modal
@@ -38,18 +29,20 @@ export function MessageDeleteDialog({
           backgroundColor: "rgba(0, 0, 0, 0.5)",
           justifyContent: "center",
           alignItems: "center",
+          padding: 20,
         }}
       >
         <View
           style={{
             backgroundColor: colors.surface,
-            borderRadius: 12,
-            padding: 20,
-            width: "80%",
-            maxWidth: 300,
+            borderRadius: 16,
+            padding: 24,
+            width: "100%",
+            maxWidth: 400,
+            borderWidth: 1,
+            borderColor: colors.border,
           }}
         >
-          {/* Title */}
           <Text
             style={{
               fontSize: 18,
@@ -58,84 +51,65 @@ export function MessageDeleteDialog({
               marginBottom: 12,
             }}
           >
-            Mesajı Sil
+            {t('messages.deleteMessage')}
           </Text>
-
-          {/* Message */}
           <Text
             style={{
               fontSize: 14,
               color: colors.muted,
-              marginBottom: 20,
-              lineHeight: 20,
+              marginBottom: 24,
             }}
           >
-            {message}
+            {t('messages.deleteMessageConfirm')}
           </Text>
-
-          {/* Buttons */}
           <View
             style={{
               flexDirection: "row",
               gap: 12,
-              justifyContent: "flex-end",
             }}
           >
-            {/* Cancel Button */}
-            <Pressable
+            <TouchableOpacity
               onPress={onCancel}
-              disabled={loading}
-              style={({ pressed }) => [
-                {
-                  paddingHorizontal: 16,
-                  paddingVertical: 10,
-                  borderRadius: 8,
-                  backgroundColor: colors.border,
-                  opacity: pressed || loading ? 0.7 : 1,
-                },
-              ]}
+              style={{
+                flex: 1,
+                padding: 12,
+                borderRadius: 8,
+                backgroundColor: colors.background,
+                borderWidth: 1,
+                borderColor: colors.border,
+                alignItems: "center",
+              }}
             >
               <Text
                 style={{
-                  color: colors.foreground,
-                  fontWeight: "500",
                   fontSize: 14,
-                }}
-              >
-                İptal
-              </Text>
-            </Pressable>
-
-            {/* Delete Button */}
-            <Pressable
-              onPress={onConfirm}
-              disabled={loading}
-              style={({ pressed }) => [
-                {
-                  paddingHorizontal: 16,
-                  paddingVertical: 10,
-                  borderRadius: 8,
-                  backgroundColor: colors.error,
-                  opacity: pressed || loading ? 0.7 : 1,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 8,
-                },
-              ]}
-            >
-              {loading && (
-                <ActivityIndicator color={colors.background} size="small" />
-              )}
-              <Text
-                style={{
-                  color: colors.background,
                   fontWeight: "600",
-                  fontSize: 14,
+                  color: colors.foreground,
                 }}
               >
-                Sil
+                {t('common.cancel')}
               </Text>
-            </Pressable>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={onConfirm}
+              style={{
+                flex: 1,
+                padding: 12,
+                borderRadius: 8,
+                backgroundColor: "#ef4444",
+                alignItems: "center",
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: "600",
+                  color: "#ffffff",
+                }}
+              >
+                {t('messages.delete')}
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </View>

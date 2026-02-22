@@ -102,7 +102,7 @@ The existing Socket.IO server (server/socket-io.ts) provides a foundation, but n
 - [ ] 5. Checkpoint - Test Socket.IO hook in isolation
   - Ensure all tests pass, ask the user if questions arise.
 
-- [-] 6. Update app/room-detail.tsx to use Socket.IO
+- [x] 6. Update app/room-detail.tsx to use Socket.IO
   - [x] 6.1 Replace HTTP polling with Socket.IO hook
     - Import and use useSocketIO hook instead of useGroupWebSocket
     - Remove trpc.groups.getMessages polling (refetchInterval)
@@ -110,7 +110,7 @@ The existing Socket.IO server (server/socket-io.ts) provides a foundation, but n
     - Leave conversation/room on component unmount
     - _Requirements: 2.2.1, 2.2.4_
   
-  - [-] 6.2 Implement optimistic UI updates
+  - [x] 6.2 Implement optimistic UI updates
     - Generate temporary ID for new messages (temp-${Date.now()})
     - Add message to UI immediately with status: 'sending'
     - Update message with real ID when acknowledgment received
@@ -118,14 +118,14 @@ The existing Socket.IO server (server/socket-io.ts) provides a foundation, but n
     - Update status to 'failed' on error with retry button
     - _Requirements: 2.5.1, 2.5.2, 2.5.3, 2.5.4, 2.5.5_
   
-  - [ ] 6.3 Add connection status indicator
+  - [x] 6.3 Add connection status indicator
     - Show "Connecting..." when socket is connecting
     - Show "Connected" indicator when socket is connected
     - Show "Offline" indicator when socket is disconnected
     - Show "Reconnecting..." during reconnection attempts
     - _Requirements: 2.6.2_
   
-  - [ ] 6.4 Handle real-time message events
+  - [x] 6.4 Handle real-time message events
     - Listen for message:new events and add to messages list
     - Deduplicate messages by ID (handle optimistic + real)
     - Scroll to bottom when new message arrives

@@ -76,11 +76,11 @@ async function startServer() {
     console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
   }
 
+  // Initialize Socket.IO BEFORE server starts listening
+  setupSocketIO(server);
+
   server.listen(port, () => {
     console.log(`[api] server listening on port ${port}`);
-    
-    // Initialize Socket.IO
-    setupSocketIO(server);
     
     // Start auto-delete scheduler
     import("../auto-delete-scheduler").then((module) => {
