@@ -36,6 +36,8 @@ interface Message {
   originalLanguage: string;
   translatedText: string | null;
   targetLanguage: string;
+  senderUsername?: string;
+  senderProfilePicture?: string | null;
   createdAt: Date;
 }
 
@@ -436,7 +438,7 @@ export default function RoomDetailScreen() {
                       <View>
                         {!isSender && (
                           <Text className="text-xs text-muted mb-1 font-semibold">
-                            User {item.senderId}
+                            {item.senderUsername || `User ${item.senderId}`}
                           </Text>
                         )}
                         {/* Show translated text first (user's language) */}
