@@ -26,7 +26,6 @@ import { TypingIndicator } from "@/components/typing-indicator";
 import { ReactionPicker } from "@/components/reaction-picker";
 import { MessageDeleteDialog } from "@/components/message-delete-dialog";
 import { RoomParticipantsModal } from "@/components/room-participants-modal";
-import { MessageSearchModal } from "@/components/message-search-modal";
 import { Swipeable } from "react-native-gesture-handler";
 import type { DocumentPickerAsset } from "expo-document-picker";
 
@@ -62,7 +61,8 @@ export default function RoomDetailScreen() {
   const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null);
   const [showMediaMenu, setShowMediaMenu] = useState(false);
   const [showParticipantsModal, setShowParticipantsModal] = useState(false);
-  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showSearchBar, setShowSearchBar] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   
   const flatListRef = useRef<FlatList>(null);
   const typingTimeoutRef = useRef<any>(null);
@@ -99,6 +99,12 @@ export default function RoomDetailScreen() {
   const userProfileQuery = trpc.profile.get.useQuery();
   const leaveRoomMutation = trpc.groups.leaveRoom.useMutation();
   const generateSummaryMutation = trpc.groups.generateSummary.useMutation();
+  
+  // Search messages query
+  const searchMessagesQuery = trpc.groups.searchMessages.useQuery(
+    { roomId: roomId_num, query: searchQuery },
+    { enabled: searchQuery.length >= 2 }
+  );
 
   // Initialize messages from query
   useEffect(() => {
@@ -350,16 +356,20 @@ export default function RoomDetailScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => setShowSearchModal(true)}
+            onPress={() => setShowSearchBar(!showSearchBar)}
             style={{
-              backgroundColor: colors.surface,
+              backgroundColor: showSearchBar ? colors.primary : colors.surface,
               borderRadius: 50,
               padding: 10,
               borderWidth: 1,
               borderColor: colors.border,
             }}
           >
-            <Ionicons name="search-outline" size={20} color={colors.primary} />
+            <Ionicons 
+              name={showSearchBar ? "close" : "search-outline"} 
+              size={20} 
+              color={showSearchBar ? "#ffffff" : colors.primary} 
+            />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -400,10 +410,46 @@ export default function RoomDetailScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Search Bar */}
+        {showSearchBar && (
+          <View
+            style={{
+              backgroundColor: colors.surface,
+              borderRadius: 12,
+              paddingHorizontal: 16,
+              paddingVertical: 12,
+              borderWidth: 1,
+              borderColor: colors.border,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 12,
+            }}
+          >
+            <Ionicons name="search" size={20} color={colors.muted} />
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder={t("messages.searchPlaceholder")}
+              placeholderTextColor={colors.muted}
+              style={{
+                flex: 1,
+                color: colors.foreground,
+                fontSize: 16,
+              }}
+              autoFocus
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery("")}>
+                <Ionicons name="close-circle" size={20} color={colors.muted} />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
         {/* Messages List */}
         <FlatList
           ref={flatListRef}
-          data={messages}
+          data={showSearchBar && searchQuery.length >= 2 ? (searchMessagesQuery.data || []) : messages}
           keyExtractor={(item, index) => `msg-${item.id}-${index}`}
           ListFooterComponent={isTyping ? <TypingIndicator /> : null}
           renderItem={({ item }) => {
@@ -601,20 +647,6 @@ export default function RoomDetailScreen() {
           visible={showParticipantsModal}
           roomId={roomId_num}
           onClose={() => setShowParticipantsModal(false)}
-        />
-
-        {/* Message Search Modal */}
-        <MessageSearchModal
-          visible={showSearchModal}
-          roomId={roomId_num}
-          onClose={() => setShowSearchModal(false)}
-          onMessageSelect={(messageId) => {
-            // Scroll to message
-            const index = messages.findIndex((m) => m.id === messageId);
-            if (index !== -1) {
-              flatListRef.current?.scrollToIndex({ index, animated: true });
-            }
-          }}
         />
       </ScreenContainer>
     </KeyboardAvoidingView>
