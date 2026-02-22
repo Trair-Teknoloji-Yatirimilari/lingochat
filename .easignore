@@ -1,0 +1,22 @@
+# Server files - not needed for mobile build
+server/
+dist/
+drizzle/
+
+# Development files
+*.log
+.env.local
+.DS_Store
+
+# Test files
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+
+# Documentation
+*.md
+!README.md
+
+# Build artifacts
+node_modules/.cache
