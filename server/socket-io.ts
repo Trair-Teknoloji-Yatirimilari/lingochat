@@ -311,6 +311,35 @@ export function setupSocketIO(server: Server) {
         // Broadcast to all users in room
         io.to(`room:${roomId}`).emit("room:message", messageData);
 
+        // Send push notifications to offline users
+        try {
+          const roomParticipants = await db.getRoomParticipants(roomId);
+          const sender = await db.getUserById(socket.data.userId);
+          
+          for (const participant of roomParticipants) {
+            // Skip sender
+            if (participant.userId === socket.data.userId) continue;
+            
+            // Check if user is online (connected to Socket.IO)
+            const isOnline = Array.from(io.sockets.sockets.values()).some(
+              (s) => s.data.userId === participant.userId
+            );
+            
+            // Send push notification if user is offline
+            if (!isOnline) {
+              const { sendPushNotification } = await import("./push-notification-service");
+              await sendPushNotification(
+                participant.userId,
+                sender?.name || "Someone",
+                data.text,
+                { type: "group_message", roomId, messageId: savedMessage.id }
+              );
+            }
+          }
+        } catch (pushError) {
+          console.error("[Socket.IO] Failed to send push notifications:", pushError);
+        }
+
         // Send acknowledgment to sender
         socket.emit("room:message_ack", savedMessage.id);
         

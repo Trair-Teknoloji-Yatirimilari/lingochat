@@ -84,7 +84,10 @@ export default function RoomDetailScreen() {
 
   const messagesQuery = trpc.groups.getMessages.useQuery(
     { roomId: roomId_num, limit: 100 },
-    { enabled: !!roomId_num }
+    { 
+      enabled: !!roomId_num,
+      refetchInterval: 2000, // Poll every 2 seconds as fallback
+    }
   );
 
   const userProfileQuery = trpc.profile.get.useQuery();
@@ -120,19 +123,7 @@ export default function RoomDetailScreen() {
       console.log("[Room] New message received:", newMessage);
       
       setMessages((prev) => {
-        // Check if message already exists (by ID or by content+sender+time)
-        const exists = prev.some((m) => 
-          m.id === newMessage.id || 
-          (m.senderId === newMessage.senderId && 
-           m.originalText === newMessage.originalText &&
-           Math.abs(new Date(m.createdAt).getTime() - new Date(newMessage.createdAt).getTime()) < 5000)
-        );
-        
-        if (exists) {
-          console.log("[Room] Message already exists, skipping");
-          return prev;
-        }
-        
+        console.log("[Room] Adding new message:", newMessage.id);
         return [...prev, newMessage].sort((a, b) => 
           new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
         );
