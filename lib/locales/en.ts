@@ -218,6 +218,10 @@ export default {
     documentDownloading: 'Downloading document...',
     documentDownloaded: 'Document downloaded',
     documentDownloadFailed: 'Could not download document',
+    searchMessages: 'Search Messages',
+    searchPlaceholder: 'Search in messages...',
+    searchHint: 'Type at least 2 characters to search',
+    noResults: 'No results found',
   },
   
   // Groups
@@ -242,6 +246,9 @@ export default {
     autoTranslationDescription: 'Everyone speaks and reads in their own language',
     securePrivate: 'Secure & Private',
     securePrivateDescription: 'All your messages are encrypted and secure',
+    moderator: 'Moderator',
+    joinedAt: 'Joined',
+    noParticipants: 'No participants',
   },
   
   // Profile

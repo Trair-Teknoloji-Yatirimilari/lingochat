@@ -25,6 +25,8 @@ import { MediaMessageDisplay } from "@/components/media-message-display";
 import { TypingIndicator } from "@/components/typing-indicator";
 import { ReactionPicker } from "@/components/reaction-picker";
 import { MessageDeleteDialog } from "@/components/message-delete-dialog";
+import { RoomParticipantsModal } from "@/components/room-participants-modal";
+import { MessageSearchModal } from "@/components/message-search-modal";
 import { Swipeable } from "react-native-gesture-handler";
 import type { DocumentPickerAsset } from "expo-document-picker";
 

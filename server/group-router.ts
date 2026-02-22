@@ -380,6 +380,68 @@ export const groupRouter = router({
       return db.getGroupParticipants(input.roomId);
     }),
 
+  // Search messages in room
+  searchMessages: protectedProcedure
+    .input(
+      z.object({
+        roomId: z.number(),
+        query: z.string().min(2),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const userProfile = await db.getUserProfile(ctx.user.id);
+      const userLanguage = userProfile?.preferredLanguage || "tr";
+
+      // Get all messages from the room
+      const allMessages = await db.getGroupMessages(input.roomId, 1000);
+
+      // Filter messages that contain the search query (case-insensitive)
+      const searchLower = input.query.toLowerCase();
+      const filteredMessages = allMessages.filter((msg) =>
+        msg.originalText.toLowerCase().includes(searchLower)
+      );
+
+      // Get sender profiles
+      const senderIds = [...new Set(filteredMessages.map((m) => m.senderId))];
+      const senderProfiles = await Promise.all(
+        senderIds.map((id) => db.getUserProfile(id))
+      );
+      const profileMap = new Map(
+        senderProfiles.filter((p) => p).map((p) => [p!.userId, p])
+      );
+
+      // Add sender info and translations
+      const results = await Promise.all(
+        filteredMessages.map(async (msg) => {
+          const senderProfile = profileMap.get(msg.senderId);
+
+          // Get translation if needed
+          let translatedText = msg.originalText;
+          if (msg.originalLanguage !== userLanguage) {
+            const cachedTranslation = await db.getGroupMessageTranslation(
+              msg.id,
+              userLanguage
+            );
+            if (cachedTranslation) {
+              translatedText = cachedTranslation.translatedText;
+            }
+          }
+
+          return {
+            ...msg,
+            senderUsername: senderProfile?.username,
+            translatedText,
+          };
+        })
+      );
+
+      // Sort by date (newest first)
+      return results.sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+    }),
+
   // Invite users to room
   inviteUsers: protectedProcedure
     .input(
