@@ -86,7 +86,7 @@ export default function RoomDetailScreen() {
     { roomId: roomId_num, limit: 100 },
     { 
       enabled: !!roomId_num,
-      refetchInterval: 2000, // Poll every 2 seconds as fallback
+      refetchInterval: 1000, // Poll every 1 second for faster updates
     }
   );
 
@@ -97,6 +97,10 @@ export default function RoomDetailScreen() {
   useEffect(() => {
     if (messagesQuery.data) {
       setMessages(messagesQuery.data as any);
+      // Auto-scroll to bottom when messages load
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: false });
+      }, 100);
     }
   }, [messagesQuery.data]);
 
@@ -487,6 +491,8 @@ export default function RoomDetailScreen() {
               placeholder="Type a message..."
               value={messageText}
               onChangeText={handleTextChange}
+              onSubmitEditing={handleSendMessage}
+              blurOnSubmit={false}
               multiline
               maxLength={500}
               className="flex-1 text-foreground"
