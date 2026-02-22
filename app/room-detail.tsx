@@ -439,10 +439,12 @@ export default function RoomDetailScreen() {
                             User {item.senderId}
                           </Text>
                         )}
+                        {/* Show translated text first (user's language) */}
                         <Text className="text-base text-foreground">
-                          {item.originalText}
+                          {item.translatedText || item.originalText}
                         </Text>
 
+                        {/* Show original text below if different from translation */}
                         {item.translatedText && item.translatedText !== item.originalText && (
                           <View
                             style={{
@@ -456,7 +458,7 @@ export default function RoomDetailScreen() {
                               className="text-sm text-foreground opacity-80"
                               style={{ fontStyle: "italic" }}
                             >
-                              {item.translatedText}
+                              {item.originalText}
                             </Text>
                           </View>
                         )}
